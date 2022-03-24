@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package kvpb;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+
+message KV {
+  option (gogoproto.goproto_getters) = false;
+  option (gogoproto.compare) = true;
+  string Key = 1 ;
+  string Val = 2 ;
+}
+
+// protoc --proto_path=. --proto_path=$env:GOPATH/src
+// --proto_path=$env:GOPATH/src/github.com/gogo/protobuf/protobuf --gogofaster_out=. ./kv.proto
