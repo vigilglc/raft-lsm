@@ -56,20 +56,14 @@ func (c *Config) MakeDirAll() error {
 
 func (c *Config) GetMainDir() (string, error) {
 	if len(c.meta.MainSubDirname) == 0 {
-		f, err := openConfigMetaFile(c.Dir)
+		meta, err := readConfigMeta(c.Dir, backendMataBackupName)
 		if err != nil {
+			meta, err = readConfigMeta(c.Dir, backendMataFilename)
+		}
+		if err != nil && !os.IsNotExist(err) {
 			return "", err
 		}
-		jsonB, err := ioutil.ReadAll(f)
-		if err != nil {
-			return "", err
-		}
-		if err := json.Unmarshal(jsonB, &c.meta); err != nil {
-			return "", err
-		}
-		if err := f.Close(); err != nil {
-			return "", err
-		}
+		c.meta = meta
 	}
 	if len(c.meta.MainSubDirname) == 0 {
 		tempDir, err := c.MakeTempDir(0)
@@ -84,29 +78,53 @@ func (c *Config) GetMainDir() (string, error) {
 }
 
 const backendMataFilename = "backend.meta.json"
+const backendMataBackupName = "backend.meta.json.bak"
 
-func openConfigMetaFile(dir string) (f *os.File, err error) {
-	return os.Create(filepath.Join(dir, backendMataFilename))
-}
-
-func (c *Config) SetMainDir(dir string) error {
-	f, err := openConfigMetaFile(c.Dir)
+func writeConfigMeta(dir, fn string, meta Meta) (err error) {
+	f, err := os.Create(filepath.Join(dir, fn))
+	defer func(f *os.File) { err = f.Close() }(f)
 	if err != nil {
 		return err
 	}
-	cpMeta := c.meta
-	cpMeta.MainSubDirname = filepath.Base(dir)
-	jsonB, err := json.Marshal(cpMeta)
+	jsonB, err := json.Marshal(meta)
 	if err != nil {
 		return err
 	}
 	if err := codec.WriteFull(f, jsonB); err != nil {
 		return err
 	}
-	if err := f.Close(); err != nil {
+	return err
+}
+
+func readConfigMeta(dir, fn string) (meta Meta, err error) {
+	f, err := os.OpenFile(filepath.Join(dir, fn), os.O_RDONLY, 0444)
+	defer func(f *os.File) { err = f.Close() }(f)
+	if err != nil {
+		return
+	}
+	jsonB, err := ioutil.ReadAll(f)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(jsonB, &meta)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (c *Config) SetMainDir(dir string) error {
+	cpMeta := c.meta
+	cpMeta.MainSubDirname = filepath.Base(dir)
+	if err := writeConfigMeta(c.Dir, backendMataBackupName, cpMeta); err != nil {
+		return err
+	}
+	if err := writeConfigMeta(c.Dir, backendMataFilename, cpMeta); err != nil {
 		return err
 	}
 	c.meta = cpMeta
+	_ = os.Remove(filepath.Join(c.Dir, backendMataFilename))
+	_ = os.Rename(filepath.Join(c.Dir, backendMataBackupName), filepath.Join(c.Dir, backendMataFilename))
 	return nil
 }
 
