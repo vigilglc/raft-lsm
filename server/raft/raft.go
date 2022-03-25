@@ -17,9 +17,9 @@ type RaftNode struct {
 	memStorage *raft.MemoryStorage
 	walStorage etcdserver.Storage
 	// logical timer
-	heartbeat time.Duration
-	tickMu    sync.Mutex
-	ticker    *time.Ticker
+	oneTick time.Duration
+	tickMu  sync.Mutex
+	ticker  *time.Ticker
 	// stop chan
 	stopped chan struct{}
 	done    chan struct{}
@@ -29,19 +29,19 @@ type RaftNode struct {
 }
 
 func NewRaftNode(
-	lg *zap.Logger, heartbeat time.Duration,
+	lg *zap.Logger, oneTick time.Duration,
 	node raft.Node, transport *rafthttp.Transport,
 	memStorage *raft.MemoryStorage, walStorage etcdserver.Storage) *RaftNode {
 	if lg == nil {
 		lg = zap.NewExample()
 	}
 	r := &RaftNode{
-		lg: lg, heartbeat: heartbeat,
+		lg: lg, oneTick: oneTick,
 		n: node, transport: transport,
 		memStorage: memStorage, walStorage: walStorage,
 	}
 	raft.SetLogger(&ZapRaftLogger{lg.Sugar()})
-	r.ticker = time.NewTicker(heartbeat)
+	r.ticker = time.NewTicker(oneTick)
 	return r
 }
 
