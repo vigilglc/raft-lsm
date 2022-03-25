@@ -33,7 +33,7 @@ func NewDecoder(r io.Reader) *Decoder {
 
 func (d *Decoder) Decode(kv *kvpb.KV) (err error) {
 	if _, err := io.ReadFull(d.br, d.uint64Buf); err != nil {
-		return err
+		return ErrKVSnapshotCorrupted
 	}
 	dLen := readUint64(d.uint64Buf)
 	if dLen == 0 {
@@ -48,7 +48,7 @@ func (d *Decoder) Decode(kv *kvpb.KV) (err error) {
 		buf = make([]byte, dLen, dLen)
 	}
 	if _, err := io.ReadFull(d.br, buf[:dLen]); err != nil {
-		return err
+		return ErrKVSnapshotCorrupted
 	}
 	err = kv.Unmarshal(buf[:dLen])
 	if err != nil {

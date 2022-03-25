@@ -64,14 +64,21 @@ func TestDecodeNormalData(t *testing.T) {
 func TestDecodeCorrupted(t *testing.T) {
 	var err error
 	var kv = new(kvpb.KV)
-	end8Bytes := []uint64{0, 1, math.MaxInt64}
+	tcases := []struct {
+		end8Bytes   uint64
+		expectedErr error
+	}{
+		{0, io.EOF},
+		{1, ErrKVSnapshotCorrupted},
+		{math.MaxUint64, ErrTooLargeKV},
+	}
 	uint8Buf := make([]byte, 8)
-	for _, end8B := range end8Bytes {
-		writeUint64(end8B, uint8Buf)
+	for _, tc := range tcases {
+		writeUint64(tc.end8Bytes, uint8Buf)
 		d := NewDecoder(bytes.NewReader(uint8Buf))
 		err = d.Decode(kv)
-		if err == nil {
-			t.Fatalf("Should return err: %v", io.EOF)
+		if err != tc.expectedErr {
+			t.Fatalf("Should return err: %v, actually return %v", tc.expectedErr, err)
 		}
 	}
 }
