@@ -71,22 +71,7 @@ func pipeIterator2Chan(fromIter iterator.Iterator, asc bool, toChan chan<- *kvpb
 FIN:
 	if err != nil {
 		errC <- err
+	} else {
+		close(toChan) // necessary to notify kv drained...
 	}
-}
-
-func pipeChan2LevelDB(fromChan <-chan *kvpb.KV, errC <-chan error, db *leveldb.DB) error {
-	var err error
-	for err == nil {
-		select {
-		case err = <-errC:
-		case kv, ok := <-fromChan:
-			if ok {
-				err = db.Put([]byte(kv.Key), []byte(kv.Val), nil)
-			} else {
-				goto FIN
-			}
-		}
-	}
-FIN:
-	return err
 }
