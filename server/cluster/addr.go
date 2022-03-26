@@ -5,10 +5,11 @@ import (
 )
 
 type AddrInfo struct {
-	Name        string `json:"name,omitempty"`
-	Host        string `json:"host,omitempty"`
-	ServicePort uint16 `json:"servicePort,omitempty"`
-	RaftPort    uint16 `json:"raftPort,omitempty"`
+	Name        string  `json:"name,omitempty"`
+	AssignedID  *uint64 `json:"assignedID,omitempty"`
+	Host        string  `json:"host"`
+	ServicePort uint16  `json:"servicePort"`
+	RaftPort    uint16  `json:"raftPort"`
 }
 
 func (addr *AddrInfo) ServiceAddress() string {
