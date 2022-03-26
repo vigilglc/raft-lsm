@@ -1,4 +1,4 @@
-package raftserver
+package raftn
 
 import (
 	"go.etcd.io/etcd/raft/v3"
@@ -157,6 +157,10 @@ func (r *RaftNode) ReadStatesC() <-chan []raft.ReadState {
 func (r *RaftNode) Stop() {
 	close(r.stopped)
 	<-r.done
+}
+
+func (r *RaftNode) Status() raft.Status {
+	return r.n.Status()
 }
 
 func (r *RaftNode) processMessages(isIDRemoved func(id uint64) bool, msgs []raftpb.Message) (

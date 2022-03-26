@@ -1,4 +1,4 @@
-package raftserver
+package raftn
 
 import "go.uber.org/zap"
 
