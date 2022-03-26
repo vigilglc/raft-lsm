@@ -19,7 +19,7 @@ import (
 type Backend interface {
 	AppliedIndex() uint64
 	CurrConfState() raftpb.ConfState
-	PutConfState(ai uint64, confState raftpb.ConfState) error
+	PutConfState(ai uint64, confState raftpb.ConfState, meta ...*kvpb.KV) error
 
 	Get(key string) (val string, err error)
 	Put(ai uint64, key, val string) error
@@ -51,9 +51,9 @@ type backend struct {
 }
 
 const (
-	reservedSPrefix = "__"
-	appliedIndexKey = reservedSPrefix + "APPLIED_INDEX"
-	confStateKey    = reservedSPrefix + "CONF_STATE"
+	ReservedSPrefix = "__"
+	appliedIndexKey = ReservedSPrefix + "APPLIED_INDEX"
+	confStateKey    = ReservedSPrefix + "CONF_STATE"
 )
 
 const (
@@ -106,7 +106,7 @@ func verifyKey(key string) bool {
 	if len(key) > maxKeySize {
 		return false
 	}
-	if strings.HasPrefix(key, reservedSPrefix) {
+	if strings.HasPrefix(key, ReservedSPrefix) {
 		return false
 	}
 	for _, rn := range key {
@@ -148,10 +148,12 @@ func readInConfState(db *leveldb.DB) (confState *raftpb.ConfState, err error) {
 	return bytes2ConfState(bts)
 }
 
-func (be *backend) PutConfState(ai uint64, confState raftpb.ConfState) error {
-	return be.Write(NewBatchBuilder().
-		AppliedIndex(ai).confState(&confState).Finish(),
-	)
+func (be *backend) PutConfState(ai uint64, confState raftpb.ConfState, meta ...*kvpb.KV) error {
+	builder := NewBatchBuilder().AppliedIndex(ai).confState(&confState)
+	for _, kv := range meta {
+		builder.Put(kv.Key, kv.Val)
+	}
+	return be.Write(builder.Finish())
 }
 
 func (be *backend) Get(key string) (val string, err error) {
