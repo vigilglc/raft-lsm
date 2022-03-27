@@ -26,6 +26,20 @@ const (
 	removedMemberIDsKey = backend.ReservedSPrefix + "REMOVED_MEMBER_IDS"
 )
 
+func (cl *Cluster) GetLocalMember() *Member {
+	defer syncutil.SchedLockers(cl.rwmu.RLocker())()
+	return cl.localMember
+}
+
+func (cl *Cluster) GetPeerMembers() []*Member {
+	defer syncutil.SchedLockers(cl.rwmu.RLocker())()
+	var ret []*Member
+	for _, mem := range cl.peerMembers {
+		ret = append(ret, mem)
+	}
+	return ret
+}
+
 func (cl *Cluster) SetBackend(be backend.Backend) {
 	cl.be = be
 }
@@ -33,8 +47,19 @@ func (cl *Cluster) SetBackend(be backend.Backend) {
 func encodePeerMembers(peerMembers map[uint64]*Member) (string, error) {
 	return json.MarshalToString(peerMembers)
 }
+func decodePeerMembers(data string) (peerMembers map[uint64]*Member, err error) {
+	peerMembers = map[uint64]*Member{}
+	err = json.UnmarshalFromString(data, &peerMembers)
+	return
+}
 func encodeRemovedMemberIDs(removedMemberIDs map[uint64]struct{}) (string, error) {
 	return json.MarshalToString(removedMemberIDs)
+}
+
+func decodeRemovedMemberIDs(data string) (removedMemberIDs map[uint64]struct{}, err error) {
+	removedMemberIDs = map[uint64]struct{}{}
+	err = json.UnmarshalFromString(data, &removedMemberIDs)
+	return
 }
 
 func (cl *Cluster) AddMember(ai uint64, confState *raftpb.ConfState, mem *Member) {
@@ -108,5 +133,29 @@ func (cl *Cluster) PromoteMember(ai uint64, confState *raftpb.ConfState, ID uint
 		zap.String("cluster-name", cl.name),
 		zap.Uint64("local-member-id", cl.localMember.ID),
 		zap.Uint64("promoted-member-id", ID),
+	)
+}
+
+func (cl *Cluster) RecoverMembers() {
+	defer syncutil.SchedLockers(&cl.rwmu)()
+	memJstr, err := cl.be.Get(peerMembersKey)
+	if err != nil {
+		cl.lg.Panic("failed to get cluster peerMembers from Backend", zap.Error(err))
+	}
+	cl.peerMembers, err = decodePeerMembers(memJstr)
+	if err != nil {
+		cl.lg.Panic("failed to decode cluster peerMembers", zap.Error(err))
+	}
+	remJstr, err := cl.be.Get(removedMemberIDsKey)
+	if err != nil {
+		cl.lg.Panic("failed to get cluster removedMemberIDs from Backend", zap.Error(err))
+	}
+	cl.removedMemberIDs, err = decodeRemovedMemberIDs(remJstr)
+	if err != nil {
+		cl.lg.Panic("failed to decode cluster removedMemberIDs", zap.Error(err))
+	}
+	cl.lg.Info("remove member success",
+		zap.String("cluster-name", cl.name),
+		zap.Uint64("local-member-id", cl.localMember.ID),
 	)
 }

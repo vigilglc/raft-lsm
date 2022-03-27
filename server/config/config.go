@@ -24,7 +24,7 @@ type ServerConfig struct {
 	HeartbeatTick     int    `json:"heartbeatTick"`
 	BackendSync       bool   `json:"backendSync,omitempty"`       // whether Backend does fsync...
 	BackendForceClose bool   `json:"backendForceClose,omitempty"` // if true, Backend.Close will interrupt any in-flight writes...
-
+	SnapshotThreshold uint64 `json:"SnapshotThreshold"`
 	// logger
 	lgMu           sync.Mutex
 	lg             *zap.Logger
