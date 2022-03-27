@@ -102,7 +102,7 @@ func OpenBackend(lg *zap.Logger, cfg Config) (ret Backend, err error) {
 	return be, nil
 }
 
-func verifyKey(key string) bool {
+func ValidateKey(key string) bool {
 	if len(key) > maxKeySize {
 		return false
 	}
@@ -157,9 +157,6 @@ func (be *backend) PutConfState(ai uint64, confState raftpb.ConfState, meta ...*
 }
 
 func (be *backend) Get(key string) (val string, err error) {
-	if !verifyKey(key) {
-		return "", ErrInvalidKey
-	}
 	defer syncutil.SchedLockers(be.dbRwmu.RLocker())()
 	bts, err := be.db.Get([]byte(key), nil)
 	return string(bts), err
@@ -190,9 +187,6 @@ func (be *backend) Write(batch *Batch) error {
 	internalBatch := new(leveldb.Batch)
 	internalBatch.Put([]byte(appliedIndexKey), uint64ToBytes(batch.appliedIndex))
 	for _, ent := range batch.ents {
-		if !verifyKey(ent.key) {
-			return ErrInvalidKey
-		}
 		if ent.val == nil {
 			internalBatch.Delete([]byte(ent.key))
 		} else {
