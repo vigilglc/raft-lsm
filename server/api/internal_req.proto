@@ -1,17 +1,19 @@
 syntax = "proto3";
 
-package kvpb;
+package api;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "kv_rpc.proto";
 
 option (gogoproto.marshaler_all) = true;
 option (gogoproto.unmarshaler_all) = true;
 
-message KV {
-  option (gogoproto.goproto_getters) = false;
-  option (gogoproto.compare) = true;
-  string Key = 1 ;
-  string Val = 2 ;
+message InternalRequest {
+  uint64 ID = 1;
+
+  PutRequest put = 3;
+  DelRequest del = 4;
+  WriteRequest write = 5;
 }
 
 // protoc -I . -I $env:GOPATH/src --gogofaster_out=. ./**.proto

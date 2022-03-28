@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package api;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "github.com/vigilglc/raft-lsm/server/backend/kvpb/kv.proto";
+
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+
+service KVService {
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc Put(PutRequest) returns (PutResponse);
+  rpc Del(DelRequest) returns (DelResponse);
+  rpc Write(WriteRequest) returns (WriteResponse);
+  rpc Range(stream RangeRequest) returns (stream RangeResponse) ;
+}
+
+message GetRequest{
+  string key = 1;
+  bool linearizable = 255;
+}
+
+message GetResponse{
+  string val = 1;
+}
+
+message PutRequest{
+  kvpb.KV keyVal = 1;
+}
+
+message PutResponse{}
+
+message DelRequest{
+  string key = 1;
+}
+
+message DelResponse{}
+
+
+message BatchEntry{
+  enum BatchOP{
+    PUT = 0;
+    DEL = 1;
+  }
+  BatchOP OP = 1;
+  kvpb.KV keyVal = 2;
+}
+
+message WriteRequest{
+  repeated BatchEntry batch = 1;
+}
+
+message WriteResponse{
+
+}
+
+
+message RangeRequest {
+  enum RangeOP{
+    BEGIN = 0;
+    NEXTN = 1; // fetch next n keyVals...
+    CLOSE = 2;
+  }
+  enum RangeOrder{
+    ASC = 0;
+    DESC = 1;
+  }
+  RangeOP OP = 1;
+  string from = 2;
+  string to = 3;
+  RangeOrder order = 4;
+  uint64 count = 5;
+  bool linearizable = 255;
+}
+
+message RangeResponse{
+  repeated kvpb.KV keyVals = 1;
+  bool hasMore = 2;
+}

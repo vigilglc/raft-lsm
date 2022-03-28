@@ -1,7 +1,9 @@
 package server
 
 import (
+	"github.com/vigilglc/raft-lsm/server/api"
 	"github.com/vigilglc/raft-lsm/server/raftn"
+	"github.com/vigilglc/raft-lsm/server/utils/mathutil"
 	"go.etcd.io/etcd/client/pkg/v3/types"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
@@ -22,7 +24,7 @@ func (s *Server) applyAll(patch *raftn.ApplyPatch) {
 	appliedIndex, confState := s.backend.AppliedIndex(), s.backend.CurrConfState()
 	s.timelineNtf.Notify(appliedIndex)
 
-	s.tryShotSnapshot(appliedIndex, &confState)
+	s.tryTakeSnapshot(appliedIndex, &confState)
 	if len(patch.SnapMsgs) != 0 {
 		s.sendSnapshot(s.createSnapMsgs(appliedIndex, confState, patch.SnapMsgs))
 	}
@@ -71,10 +73,71 @@ func (s *Server) applySnapshot(snap raftpb.Snapshot) {
 }
 
 func (s *Server) applyCommittedEntries(ents []raftpb.Entry) {
-
+	ents = s.entries2Apply(ents)
+	if len(ents) == 0 {
+		return
+	}
+	var shouldStop bool
+	var internalReq api.InternalRequest
+	var confChange = new(raftpb.ConfChange)
+	for _, ent := range ents {
+		if ent.Type == raftpb.EntryNormal {
+			req := &internalReq
+			s.lg.Debug("apply normal entry", zap.Uint64("entry-index", ent.Index))
+			if len(ent.Data) == 0 {
+				req = nil
+			} else if err := internalReq.Unmarshal(ent.Data); err != nil {
+				s.lg.Panic("failed to unmarshal internalRequest",
+					zap.ByteString("data", ent.Data), zap.Error(err),
+				)
+			}
+			s.reqNotifier.Notify(req.GetID(), s.applier.Apply(ent.Index, req))
+		} else if ent.Type == raftpb.EntryConfChange {
+			if err := confChange.Unmarshal(ent.Data); err != nil {
+				s.lg.Panic("failed to unmarshal confChange",
+					zap.ByteString("data", ent.Data), zap.Error(err),
+				)
+			}
+			removeSelf, err := s.applyConfChange(ent.Index, confChange)
+			shouldStop = shouldStop || removeSelf
+			s.reqNotifier.Notify(confChange.ID, &ConfChangeResponse{err: err})
+		} else {
+			s.lg.Panic(
+				"unknown entry type; must be either EntryNormal or EntryConfChange",
+				zap.String("type", ent.Type.String()),
+			)
+		}
+	}
+	if shouldStop {
+		// TODO: add stop codes...
+	}
 }
 
-func (s *Server) tryShotSnapshot(index uint64, confState *raftpb.ConfState) {
+type ConfChangeResponse struct {
+	err error
+}
+
+func (s *Server) applyConfChange(index uint64, cc *raftpb.ConfChange) (removeSelf bool, err error) {
+	// TODO: implement me
+	panic("not implemented yet!")
+}
+
+func (s *Server) entries2Apply(ents []raftpb.Entry) []raftpb.Entry {
+	if len(ents) == 0 {
+		return nil
+	}
+	appliedIndex := s.backend.AppliedIndex()
+	if ents[0].Index > appliedIndex+1 {
+		s.lg.Panic("unexpected committed entry index",
+			zap.Uint64("current-applied-index", appliedIndex),
+			zap.Uint64("first-entry-index", ents[0].Index),
+		)
+	}
+	ents = ents[mathutil.MinUint64(appliedIndex+1-ents[0].Index, uint64(len(ents))):]
+	return ents
+}
+
+func (s *Server) tryTakeSnapshot(index uint64, confState *raftpb.ConfState) {
 	snapIndex, _ := s.memStorage.FirstIndex()
 	if index-snapIndex < s.Config.SnapshotThreshold {
 		return

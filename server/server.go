@@ -25,6 +25,7 @@ type Server struct {
 	// core
 	lg          *zap.Logger
 	Config      config.ServerConfig
+	applier     Applier
 	cluster     *cluster.Cluster
 	raftNode    *raftn.RaftNode
 	backend     backend.Backend
