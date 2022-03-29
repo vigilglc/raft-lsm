@@ -11,8 +11,8 @@ import (
 )
 
 type RaftNode struct {
-	lg         *zap.Logger
-	n          raft.Node
+	lg *zap.Logger
+	raft.Node
 	transport  *rafthttp.Transport
 	memStorage *raft.MemoryStorage
 	walStorage etcdserver.Storage
@@ -37,7 +37,7 @@ func NewRaftNode(
 	}
 	r := &RaftNode{
 		lg: lg, oneTick: oneTick,
-		n: node, transport: transport,
+		Node: node, transport: transport,
 		memStorage: memStorage, walStorage: walStorage,
 	}
 	raft.SetLogger(&ZapRaftLogger{lg.Sugar()})
@@ -60,7 +60,7 @@ type ApplyPatch struct {
 
 func (r *RaftNode) Start(bridge DataBridge) {
 	var onStop = func() {
-		r.n.Stop()
+		r.Stop()
 		r.ticker.Stop()
 		r.transport.Stop()
 		if err := r.walStorage.Close(); err != nil {
@@ -77,7 +77,7 @@ func (r *RaftNode) Start(bridge DataBridge) {
 			select {
 			case <-r.ticker.C:
 				r.tick()
-			case rd := <-r.n.Ready():
+			case rd := <-r.Ready():
 				if rd.SoftState != nil {
 					if rd.SoftState.Lead != raft.None && rd.SoftState.Lead != lead {
 						lead = rd.SoftState.Lead
@@ -138,7 +138,7 @@ func (r *RaftNode) Start(bridge DataBridge) {
 					}
 					r.transport.Send(nonSnaps)
 				}
-				r.n.Advance()
+				r.Advance()
 			case <-r.stopped:
 				return
 			}
@@ -157,10 +157,6 @@ func (r *RaftNode) ReadStatesC() <-chan []raft.ReadState {
 func (r *RaftNode) Stop() {
 	close(r.stopped)
 	<-r.done
-}
-
-func (r *RaftNode) Status() raft.Status {
-	return r.n.Status()
 }
 
 func (r *RaftNode) processMessages(isIDRemoved func(id uint64) bool, msgs []raftpb.Message) (
@@ -197,5 +193,5 @@ func mustWaitApply(committedEnts []raftpb.Entry) bool {
 func (r *RaftNode) tick() {
 	r.tickMu.Lock()
 	defer r.tickMu.Unlock()
-	r.n.Tick()
+	r.Tick()
 }

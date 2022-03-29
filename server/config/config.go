@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 type ServerConfig struct {
@@ -20,8 +21,8 @@ type ServerConfig struct {
 	// raft and storage
 	DataDir           string `json:"dataDir"`   // root dir for storing any data of server.
 	OneTickMs         uint16 `json:"oneTickMs"` // how many microseconds one tick lasts...
-	ElectionTick      int    `json:"electionTick"`
-	HeartbeatTick     int    `json:"heartbeatTick"`
+	ElectionTicks     int    `json:"electionTicks"`
+	HeartbeatTicks    int    `json:"heartbeatTicks"`
 	BackendSync       bool   `json:"backendSync,omitempty"`       // whether Backend does fsync...
 	BackendForceClose bool   `json:"backendForceClose,omitempty"` // if true, Backend.Close will interrupt any in-flight writes...
 	SnapshotThreshold uint64 `json:"SnapshotThreshold"`
@@ -31,6 +32,8 @@ type ServerConfig struct {
 	Development    bool     `json:"development,omitempty"`
 	LogLevel       string   `json:"logLevel,omitempty"`
 	LogOutputPaths []string `json:"logOutputPaths,omitempty"`
+	// req and resp
+	ReadIndexBatchTimeoutMs int64 `json:"ReadIndexBatchTimeoutMs"`
 }
 
 var strMapZapLevel = map[string]zapcore.Level{
@@ -102,4 +105,10 @@ func (cfg *ServerConfig) GetBackendConfig() backend.Config {
 		ForceClose: cfg.BackendForceClose,
 		Sync:       cfg.BackendSync,
 	}
+}
+
+func (cfg *ServerConfig) GetRequestTimeout() time.Duration {
+	// 5s for queue waiting, computation and disk IO delay
+	// + 2 * election timeout for possible leader election
+	return 5*time.Second + 2*time.Duration(cfg.ElectionTicks*int(cfg.OneTickMs))*time.Millisecond
 }

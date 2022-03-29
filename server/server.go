@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"github.com/vigilglc/raft-lsm/server/backend"
 	"github.com/vigilglc/raft-lsm/server/cluster"
 	"github.com/vigilglc/raft-lsm/server/config"
@@ -34,16 +35,17 @@ type Server struct {
 	snapshotter *snap.Snapshotter
 	transport   *rafthttp.Transport
 	// channel...
-	readyC    chan struct{} // after Server
-	stopped   chan struct{}
-	done      chan struct{}
-	tptErrorC chan error // transport ErrorC
+	readyC         chan struct{} // after Server
+	stopped        chan struct{}
+	done           chan struct{}
+	tptErrorC      chan error // transport ErrorC
+	readIndexWaitC chan context.Context
 	// req and resp
 	reqIDGen    *ntfyutil.IDGenerator
 	reqNotifier *ntfyutil.RegisterNotifier
 	timelineNtf *ntfyutil.TimelineNotifier
 	// util
-	fw              *syncutil.FuncWatcher
-	leaderChangeNtf *ntfyutil.CyclicNotifier
-	firstCommitNtf  *ntfyutil.CyclicNotifier
+	fw                 *syncutil.FuncWatcher
+	leaderChangeNtf    *ntfyutil.CyclicNotifier
+	readIndexSharedNtf *ntfyutil.SharedVEmitter
 }
