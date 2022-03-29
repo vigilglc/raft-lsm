@@ -61,6 +61,8 @@ func (s *Server) requestReadIndex(ctx context.Context, reqID uint64) (index uint
 	leaderChangeC := s.leaderChangeNtf.Wait()
 	indexCh := s.reqNotifier.Register(reqID)
 	defer s.reqNotifier.Notify(reqID, nil)
+	ctx, cancelF := context.WithTimeout(ctx, s.Config.GetRequestTimeout())
+	defer cancelF()
 	err = s.sendReadIndex(ctx, reqID)
 	if err != nil {
 		return 0, err
@@ -109,8 +111,6 @@ func readIndexContext2ReqID(ctx []byte) uint64 {
 }
 
 func (s *Server) sendReadIndex(ctx context.Context, reqID uint64) error {
-	ctx, cancelF := context.WithTimeout(ctx, s.Config.GetRequestTimeout())
-	defer cancelF()
 	err := s.raftNode.ReadIndex(ctx, reqID2ReadIndexContext(reqID))
 	if err != nil {
 		s.lg.Warn("failed to call ReadIndex from Raft", zap.Error(err))
