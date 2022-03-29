@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/vigilglc/raft-lsm/server/api"
+	"github.com/vigilglc/raft-lsm/server/cluster"
 	"github.com/vigilglc/raft-lsm/server/raftn"
 	"github.com/vigilglc/raft-lsm/server/utils/mathutil"
 	"go.etcd.io/etcd/client/pkg/v3/types"
@@ -63,7 +64,7 @@ func (s *Server) applySnapshot(snap raftpb.Snapshot) {
 	s.cluster.RecoverMembers()
 	s.lg.Info("recovered cluster members")
 	s.transport.RemoveAllPeers()
-	for _, member := range s.cluster.GetPeerMembers() {
+	for _, member := range s.cluster.GetMembers() {
 		if member.ID == s.cluster.GetLocalMember().ID {
 			continue
 		}
@@ -100,7 +101,7 @@ func (s *Server) applyCommittedEntries(ents []raftpb.Entry) {
 			}
 			removeSelf, err := s.applyConfChange(ent.Index, confChange)
 			shouldStop = shouldStop || removeSelf
-			s.reqNotifier.Notify(confChange.ID, &ConfChangeResponse{err: err})
+			s.reqNotifier.Notify(confChange.ID, &cluster.ConfChangeResponse{Members: s.cluster.GetMembers(), Err: err})
 		} else {
 			s.lg.Panic(
 				"unknown entry type; must be either EntryNormal or EntryConfChange",
@@ -113,13 +114,37 @@ func (s *Server) applyCommittedEntries(ents []raftpb.Entry) {
 	}
 }
 
-type ConfChangeResponse struct {
-	err error
-}
-
 func (s *Server) applyConfChange(index uint64, cc *raftpb.ConfChange) (removeSelf bool, err error) {
-	// TODO: implement me
-	panic("not implemented yet!")
+	ccCtx, err := s.cluster.ValidateConfChange(cc)
+	if err != nil {
+		cc.NodeID = raft.None
+		s.raftNode.ApplyConfChange(cc)
+		s.cluster.SkipConfState(index)
+		s.lg.Warn("failed to validate confChange", zap.Any("confChange", cc),
+			zap.Any("confChangeContext", ccCtx), zap.Error(err),
+		)
+		return false, err
+	}
+	confState := s.raftNode.ApplyConfChange(cc)
+	localMem := s.cluster.GetLocalMember()
+	switch cc.Type {
+	case raftpb.ConfChangeAddNode, raftpb.ConfChangeAddLearnerNode:
+		if ccCtx.Promote {
+			s.cluster.PromoteMember(index, confState, cc.NodeID)
+		} else {
+			s.cluster.AddMember(index, confState, &ccCtx.Member)
+			if localMem.ID != cc.NodeID {
+				s.transport.AddPeer(types.ID(cc.NodeID), []string{ccCtx.Member.RaftAddress()})
+			}
+		}
+	case raftpb.ConfChangeRemoveNode:
+		s.cluster.RemoveMember(index, confState, cc.NodeID)
+		if localMem.ID == cc.NodeID {
+			return true, err
+		}
+		s.transport.RemovePeer(types.ID(cc.NodeID))
+	}
+	return
 }
 
 func (s *Server) entries2Apply(ents []raftpb.Entry) []raftpb.Entry {
