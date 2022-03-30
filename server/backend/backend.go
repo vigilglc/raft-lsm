@@ -32,6 +32,7 @@ type Backend interface {
 	SnapshotStream() (ai uint64, rc io.ReadCloser, size int64, err error)
 	ReceiveSnapshot(ai uint64, rc io.ReadCloser) error
 
+	Sync() error
 	Close() error
 }
 
@@ -54,6 +55,7 @@ const (
 	ReservedSPrefix = "__"
 	appliedIndexKey = ReservedSPrefix + "APPLIED_INDEX"
 	confStateKey    = ReservedSPrefix + "CONF_STATE"
+	syncMarkKey     = ReservedSPrefix + "SYNC"
 )
 
 const (
@@ -82,8 +84,9 @@ func OpenBackend(lg *zap.Logger, cfg Config) (ret Backend, err error) {
 		return
 	}
 	be.db, err = leveldb.OpenFile(mainDir, &opt.Options{
-		NoSync:   !cfg.GetSync(),
-		Comparer: cfg.GetComparer(),
+		NoSync:       false, // necessary, if global NoSync is true, all writes do no fSync.
+		NoWriteMerge: true,  // channel write sequence is not guaranteed!
+		Comparer:     cfg.GetComparer(),
 	})
 	if err != nil {
 		be.lg.Error("failed to open leveldb", zap.Error(err))
@@ -205,7 +208,10 @@ func (be *backend) Write(batch *Batch) error {
 		internalBatch.Put([]byte(confStateKey), bts)
 	}
 	defer syncutil.SchedLockers(&be.aiRwmu)()
-	err := be.db.Write(internalBatch, nil)
+	err := be.db.Write(internalBatch, &opt.WriteOptions{
+		Sync:         be.cfg.GetSync(),
+		NoWriteMerge: true,
+	})
 	if err != nil {
 		be.lg.Error("failed to write leveldb batch",
 			zap.Any("batch", internalBatch),
@@ -301,8 +307,9 @@ func (be *backend) ReceiveSnapshot(ai uint64, rc io.ReadCloser) (err error) {
 		return err
 	}
 	tempDB, err := leveldb.OpenFile(tempDir, &opt.Options{
-		NoSync:   !be.cfg.GetSync(),
-		Comparer: be.cfg.GetComparer(),
+		NoSync:       false,
+		NoWriteMerge: true,
+		Comparer:     be.cfg.GetComparer(),
 	})
 	if err != nil {
 		be.lg.Error("failed to open temp leveldb", zap.Error(err))
@@ -318,7 +325,7 @@ func (be *backend) ReceiveSnapshot(ai uint64, rc io.ReadCloser) (err error) {
 		err = tempDB.Put([]byte(kv.Key), []byte(kv.Val), nil)
 	}
 	if err == io.EOF {
-		err = nil
+		err = doSync(tempDB)
 	}
 	if err != nil {
 		be.lg.Warn("failed to decode snapshot or build new tempDB", zap.Error(err))
@@ -350,6 +357,18 @@ func (be *backend) ReceiveSnapshot(ai uint64, rc io.ReadCloser) (err error) {
 	be.db = tempDB
 	be.appliedIndex, be.confState = appliedIndex, *confState
 	return oldDB.Close()
+}
+
+func (be *backend) Sync() error {
+	defer syncutil.SchedLockers(be.dbRwmu.RLocker())()
+	return doSync(be.db)
+}
+
+func doSync(db *leveldb.DB) error {
+	return db.Put([]byte(syncMarkKey), nil, &opt.WriteOptions{
+		Sync:         true, // force fsync!
+		NoWriteMerge: true,
+	})
 }
 
 func (be *backend) Close() error {

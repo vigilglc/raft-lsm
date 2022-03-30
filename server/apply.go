@@ -167,6 +167,12 @@ func (s *Server) tryTakeSnapshot(index uint64, confState *raftpb.ConfState) {
 	if index-snapIndex < s.Config.SnapshotThreshold {
 		return
 	}
+	s.lg.Info("started to take snapshot", zap.Uint64("old-snap-index", snapIndex),
+		zap.Uint64("new-snap-index", index),
+	)
+	if err := s.backend.Sync(); err != nil {
+		s.lg.Panic("failed to sync backend", zap.Error(err))
+	}
 	snapshot, err := s.memStorage.CreateSnapshot(index, confState, nil)
 	if err != nil {
 		if err == raft.ErrSnapOutOfDate {
