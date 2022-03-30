@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package api;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+
+service RaftService {
+  rpc Status(StatusRequest) returns (StatusResponse);
+  rpc TransferLeader(TransferLeaderRequest) returns(TransferLeaderResponse);
+}
+
+
+message StatusRequest{
+  uint64 nodeID = 1;
+}
+
+enum RaftState{
+  Follower = 0;
+  Candidate = 1;
+  Leader = 2;
+  PreCandidate = 3;
+}
+
+message RaftProgress{
+  uint64 nodeID = 1;
+  uint64 matchIndex = 2;
+  uint64 nextIndex = 3;
+  RaftState raftState = 4;
+  bool recentActive = 5;
+  bool isLearner = 6;
+}
+
+message StatusResponse{
+  uint64 nodeID = 1;
+  RaftState raftState = 2;
+  uint64 term = 3;
+  uint64 lead = 4;
+  uint64 appliedIndex = 5;
+  uint64 committedIndex = 6;
+  repeated RaftProgress progresses = 12;
+}
+
+message TransferLeaderRequest{
+  uint64 transfereeID = 1;
+}
+
+message TransferLeaderResponse{
+
+}

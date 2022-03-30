@@ -9,7 +9,7 @@ option (gogoproto.marshaler_all) = true;
 option (gogoproto.unmarshaler_all) = true;
 
 service KVService {
-  rpc Get(GetRequest) returns (GetResponse);
+  rpc Get(GetRequest) returns (api.GetResponse);
   rpc Put(PutRequest) returns (PutResponse);
   rpc Del(DelRequest) returns (DelResponse);
   rpc Write(WriteRequest) returns (WriteResponse);
@@ -51,9 +51,7 @@ message WriteRequest{
   repeated BatchEntry batch = 1;
 }
 
-message WriteResponse{
-
-}
+message WriteResponse{}
 
 
 message RangeRequest {

@@ -11,13 +11,8 @@ type Member struct {
 	IsLearner bool `json:"isLearner"`
 }
 
-func NewMember(clusterName string, addrInfo AddrInfo, assignedID *uint64, isLearner bool) *Member {
-	var memberID uint64
-	if assignedID == nil {
-		memberID = computeMemberID(clusterName, addrInfo.Name, addrInfo.Host)
-	} else {
-		memberID = *assignedID
-	}
+func NewMember(clusterName string, addrInfo AddrInfo, isLearner bool) *Member {
+	var memberID = computeMemberID(clusterName, addrInfo.Name, addrInfo.Host)
 	return &Member{
 		ID:        memberID,
 		AddrInfo:  addrInfo,

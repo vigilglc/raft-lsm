@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package api;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+
+service ClusterService {
+  rpc AddMember(AddMemberRequest) returns (AddMemberResponse);
+  rpc PromoteMember(PromoteMemberRequest) returns (PromoteMemberResponse);
+  rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
+}
+
+message Member{
+  uint64 ID = 1;
+  string name = 2;
+  string host = 3;
+  uint32 raftPort = 4;
+  uint32 servicePort = 5;
+  bool  isLearner = 6;
+}
+
+
+message AddMemberRequest{
+  Member member = 1;
+}
+
+message AddMemberResponse{
+  repeated Member members = 1;
+}
+
+message PromoteMemberRequest{
+  uint64 nodeID = 1;
+}
+
+message PromoteMemberResponse{
+  repeated Member members = 1;
+}
+
+message RemoveMemberRequest{
+  uint64 nodeID = 1;
+}
+
+message RemoveMemberResponse{
+  repeated Member members = 1;
+}
+
+message ListMembersRequest{
+  bool linearizable = 255;
+}
+
+message ListMembersResponse{
+  repeated Member members = 1;
+}
+

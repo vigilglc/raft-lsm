@@ -4,10 +4,14 @@
 package api
 
 import (
+	context "context"
 	fmt "fmt"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	kvpb "github.com/vigilglc/raft-lsm/server/backend/kvpb"
+	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	io "io"
 	math "math"
 	math_bits "math/bits"
@@ -686,6 +690,263 @@ var fileDescriptor_a266afc1ae7b829d = []byte{
 	0x8b, 0x5e, 0xa2, 0x3d, 0xeb, 0xfb, 0x8d, 0x8d, 0xae, 0x6f, 0x6c, 0xf4, 0xf3, 0xc6, 0x46, 0x5f,
 	0x6f, 0xed, 0xca, 0xf5, 0xad, 0x5d, 0xf9, 0x71, 0x6b, 0x57, 0xc2, 0x0d, 0xf9, 0x37, 0x78, 0xf5,
 	0x27, 0x00, 0x00, 0xff, 0xff, 0x7e, 0x98, 0x8c, 0xbc, 0x8c, 0x04, 0x00, 0x00,
+}
+
+// Reference imports to suppress errors if they are not otherwise used.
+var _ context.Context
+var _ grpc.ClientConn
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the grpc package it is being compiled against.
+const _ = grpc.SupportPackageIsVersion4
+
+// KVServiceClient is the client API for KVService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type KVServiceClient interface {
+	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
+	Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error)
+	Del(ctx context.Context, in *DelRequest, opts ...grpc.CallOption) (*DelResponse, error)
+	Write(ctx context.Context, in *WriteRequest, opts ...grpc.CallOption) (*WriteResponse, error)
+	Range(ctx context.Context, opts ...grpc.CallOption) (KVService_RangeClient, error)
+}
+
+type kVServiceClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewKVServiceClient(cc *grpc.ClientConn) KVServiceClient {
+	return &kVServiceClient{cc}
+}
+
+func (c *kVServiceClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
+	out := new(GetResponse)
+	err := c.cc.Invoke(ctx, "/api.KVService/Get", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *kVServiceClient) Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error) {
+	out := new(PutResponse)
+	err := c.cc.Invoke(ctx, "/api.KVService/Put", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *kVServiceClient) Del(ctx context.Context, in *DelRequest, opts ...grpc.CallOption) (*DelResponse, error) {
+	out := new(DelResponse)
+	err := c.cc.Invoke(ctx, "/api.KVService/Del", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *kVServiceClient) Write(ctx context.Context, in *WriteRequest, opts ...grpc.CallOption) (*WriteResponse, error) {
+	out := new(WriteResponse)
+	err := c.cc.Invoke(ctx, "/api.KVService/Write", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *kVServiceClient) Range(ctx context.Context, opts ...grpc.CallOption) (KVService_RangeClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_KVService_serviceDesc.Streams[0], "/api.KVService/Range", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &kVServiceRangeClient{stream}
+	return x, nil
+}
+
+type KVService_RangeClient interface {
+	Send(*RangeRequest) error
+	Recv() (*RangeResponse, error)
+	grpc.ClientStream
+}
+
+type kVServiceRangeClient struct {
+	grpc.ClientStream
+}
+
+func (x *kVServiceRangeClient) Send(m *RangeRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *kVServiceRangeClient) Recv() (*RangeResponse, error) {
+	m := new(RangeResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// KVServiceServer is the server API for KVService service.
+type KVServiceServer interface {
+	Get(context.Context, *GetRequest) (*GetResponse, error)
+	Put(context.Context, *PutRequest) (*PutResponse, error)
+	Del(context.Context, *DelRequest) (*DelResponse, error)
+	Write(context.Context, *WriteRequest) (*WriteResponse, error)
+	Range(KVService_RangeServer) error
+}
+
+// UnimplementedKVServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedKVServiceServer struct {
+}
+
+func (*UnimplementedKVServiceServer) Get(ctx context.Context, req *GetRequest) (*GetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
+}
+func (*UnimplementedKVServiceServer) Put(ctx context.Context, req *PutRequest) (*PutResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Put not implemented")
+}
+func (*UnimplementedKVServiceServer) Del(ctx context.Context, req *DelRequest) (*DelResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Del not implemented")
+}
+func (*UnimplementedKVServiceServer) Write(ctx context.Context, req *WriteRequest) (*WriteResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Write not implemented")
+}
+func (*UnimplementedKVServiceServer) Range(srv KVService_RangeServer) error {
+	return status.Errorf(codes.Unimplemented, "method Range not implemented")
+}
+
+func RegisterKVServiceServer(s *grpc.Server, srv KVServiceServer) {
+	s.RegisterService(&_KVService_serviceDesc, srv)
+}
+
+func _KVService_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KVServiceServer).Get(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.KVService/Get",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KVServiceServer).Get(ctx, req.(*GetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _KVService_Put_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PutRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KVServiceServer).Put(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.KVService/Put",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KVServiceServer).Put(ctx, req.(*PutRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _KVService_Del_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DelRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KVServiceServer).Del(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.KVService/Del",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KVServiceServer).Del(ctx, req.(*DelRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _KVService_Write_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WriteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KVServiceServer).Write(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.KVService/Write",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KVServiceServer).Write(ctx, req.(*WriteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _KVService_Range_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(KVServiceServer).Range(&kVServiceRangeServer{stream})
+}
+
+type KVService_RangeServer interface {
+	Send(*RangeResponse) error
+	Recv() (*RangeRequest, error)
+	grpc.ServerStream
+}
+
+type kVServiceRangeServer struct {
+	grpc.ServerStream
+}
+
+func (x *kVServiceRangeServer) Send(m *RangeResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *kVServiceRangeServer) Recv() (*RangeRequest, error) {
+	m := new(RangeRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+var _KVService_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "api.KVService",
+	HandlerType: (*KVServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Get",
+			Handler:    _KVService_Get_Handler,
+		},
+		{
+			MethodName: "Put",
+			Handler:    _KVService_Put_Handler,
+		},
+		{
+			MethodName: "Del",
+			Handler:    _KVService_Del_Handler,
+		},
+		{
+			MethodName: "Write",
+			Handler:    _KVService_Write_Handler,
+		},
+	},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Range",
+			Handler:       _KVService_Range_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
+	Metadata: "kv_rpc.proto",
 }
 
 func (m *GetRequest) Marshal() (dAtA []byte, err error) {
