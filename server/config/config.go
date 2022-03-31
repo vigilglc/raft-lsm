@@ -79,20 +79,39 @@ func (cfg *ServerConfig) GetLogger() *zap.Logger {
 }
 
 func (cfg *ServerConfig) GetDataDir() string {
-	lg := cfg.GetLogger()
-	err := os.MkdirAll(cfg.DataDir, 0666)
-	if err != nil {
-		lg.Fatal("data dir of server is invalid", zap.Error(err))
-	}
 	return cfg.DataDir
+}
+
+func (cfg *ServerConfig) MakeDataDir() {
+	if err := os.MkdirAll(cfg.GetDataDir(), 0666); err != nil {
+		cfg.GetLogger().Fatal("failed to make DataDir",
+			zap.String("data-dir", cfg.GetDataDir()), zap.Error(err),
+		)
+	}
 }
 
 func (cfg *ServerConfig) GetWALDir() string {
 	return filepath.Join(cfg.GetDataDir(), "storage/wal")
 }
 
+func (cfg *ServerConfig) MakeWALDir() {
+	if err := os.MkdirAll(cfg.GetWALDir(), 0666); err != nil {
+		cfg.GetLogger().Fatal("failed to make WALDir",
+			zap.String("WAL-dir", cfg.GetWALDir()), zap.Error(err),
+		)
+	}
+}
+
 func (cfg *ServerConfig) GetSnapshotterDir() string {
 	return filepath.Join(cfg.GetDataDir(), "storage/snap")
+}
+
+func (cfg *ServerConfig) MakeSnapshotterDir() {
+	if err := os.MkdirAll(cfg.GetSnapshotterDir(), 0666); err != nil {
+		cfg.GetLogger().Fatal("failed to make WALDir",
+			zap.String("WAL-dir", cfg.GetSnapshotterDir()), zap.Error(err),
+		)
+	}
 }
 
 func (cfg *ServerConfig) GetBackendDir() string {
@@ -107,8 +126,17 @@ func (cfg *ServerConfig) GetBackendConfig() backend.Config {
 	}
 }
 
+func (cfg *ServerConfig) GetOneTickMillis() time.Duration {
+	return time.Duration(cfg.OneTickMs) * time.Millisecond
+}
+
 func (cfg *ServerConfig) GetRequestTimeout() time.Duration {
 	// 5s for queue waiting, computation and disk IO delay
 	// + 2 * election timeout for possible leader election
 	return 5*time.Second + 2*time.Duration(cfg.ElectionTicks*int(cfg.OneTickMs))*time.Millisecond
+}
+
+func (c *ServerConfig) GetPeerDialTimeout() time.Duration {
+	// 1s for queue wait and election timeout
+	return time.Second + time.Duration(c.ElectionTicks*int(c.OneTickMs))*time.Millisecond
 }
