@@ -12,7 +12,7 @@ type Member struct {
 }
 
 func NewMember(clusterName string, addrInfo AddrInfo, isLearner bool) *Member {
-	var memberID = computeMemberID(clusterName, addrInfo.Name, addrInfo.Host)
+	var memberID = ComputeMemberID(clusterName, addrInfo)
 	return &Member{
 		ID:        memberID,
 		AddrInfo:  addrInfo,
@@ -20,11 +20,11 @@ func NewMember(clusterName string, addrInfo AddrInfo, isLearner bool) *Member {
 	}
 }
 
-func computeMemberID(clusterName, memberName, host string) uint64 {
-	var data = make([]byte, 0, len(clusterName)+len(memberName)+len(host))
+func ComputeMemberID(clusterName string, addrInfo AddrInfo) uint64 {
+	var data = make([]byte, 0, len(clusterName)+len(addrInfo.Name)+len(addrInfo.Host))
 	data = append(data, []byte(clusterName)...)
-	data = append(data, []byte(memberName)...)
-	data = append(data, []byte(host)...)
+	data = append(data, []byte(addrInfo.Name)...)
+	data = append(data, []byte(addrInfo.Host)...)
 	sum := sha1.Sum(data)
 	return binary.BigEndian.Uint64(sum[:8])
 }

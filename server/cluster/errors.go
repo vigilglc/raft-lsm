@@ -8,4 +8,5 @@ var (
 	ErrIDNotExists  = errors.New("cluster: ID not exists")
 	ErrNotLearner   = errors.New("cluster: not learner")
 	ErrAddressClash = errors.New("cluster: address clash")
+	ErrNoLocalID    = errors.New("cluster: local member ID not set")
 )

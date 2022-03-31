@@ -1,10 +1,12 @@
 package cluster
 
 import (
+	"crypto/sha1"
+	"encoding/binary"
 	json "github.com/json-iterator/go"
 	"github.com/vigilglc/raft-lsm/server/backend"
-	"github.com/vigilglc/raft-lsm/server/backend/kvpb"
 	"github.com/vigilglc/raft-lsm/server/utils/syncutil"
+	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.uber.org/zap"
 	"sync"
@@ -13,18 +15,29 @@ import (
 type Cluster struct {
 	lg   *zap.Logger
 	name string
+	id   uint64
 
-	rwmu             sync.RWMutex
-	localMemID       uint64
-	members          map[uint64]*Member
-	removedMemberIDs map[uint64]struct{}
-	be               backend.Backend
+	rwmu       sync.RWMutex
+	localMemID uint64
+	members    map[uint64]*Member
+	removedIDs map[uint64]struct{}
+	be         backend.Backend
 }
 
-const (
-	membersKey          = backend.ReservedSPrefix + "MEMBERS"
-	removedMemberIDsKey = backend.ReservedSPrefix + "REMOVED_MEMBER_IDS"
-)
+func (cl *Cluster) GetClusterID() uint64 {
+	defer syncutil.SchedLockers(cl.rwmu.RLocker())()
+	return cl.id
+}
+
+func (cl *Cluster) SetClusterID(ID uint64) {
+	defer syncutil.SchedLockers(&cl.rwmu)()
+	cl.id = ID
+}
+
+func (cl *Cluster) GetLocalMemberID() uint64 {
+	defer syncutil.SchedLockers(cl.rwmu.RLocker())()
+	return cl.localMemID
+}
 
 func (cl *Cluster) GetLocalMember() *Member {
 	defer syncutil.SchedLockers(cl.rwmu.RLocker())()
@@ -44,23 +57,6 @@ func (cl *Cluster) SetBackend(be backend.Backend) {
 	cl.be = be
 }
 
-func encodeMembers(peerMembers map[uint64]*Member) (string, error) {
-	return json.MarshalToString(peerMembers)
-}
-func decodeMembers(data string) (peerMembers map[uint64]*Member, err error) {
-	peerMembers = map[uint64]*Member{}
-	err = json.UnmarshalFromString(data, &peerMembers)
-	return
-}
-func encodeRemovedMemberIDs(removedMemberIDs map[uint64]struct{}) (string, error) {
-	return json.MarshalToString(removedMemberIDs)
-}
-func decodeRemovedMemberIDs(data string) (removedMemberIDs map[uint64]struct{}, err error) {
-	removedMemberIDs = map[uint64]struct{}{}
-	err = json.UnmarshalFromString(data, &removedMemberIDs)
-	return
-}
-
 func (cl *Cluster) SkipConfState(ai uint64) {
 	defer syncutil.SchedLockers(&cl.rwmu)()
 	if cl.be != nil {
@@ -73,16 +69,8 @@ func (cl *Cluster) SkipConfState(ai uint64) {
 func (cl *Cluster) AddMember(ai uint64, confState *raftpb.ConfState, mem *Member) {
 	defer syncutil.SchedLockers(&cl.rwmu)()
 	cl.members[mem.ID] = mem
-	memJstr, err := encodeMembers(cl.members)
-	if err != nil {
-		cl.lg.Fatal("failed to encode cluster peerMembers",
-			zap.Any("peerMembers", cl.members), zap.Error(err),
-		)
-	}
-	if cl.be != nil {
-		if err := cl.be.PutConfState(ai, *confState, &kvpb.KV{Key: membersKey, Val: memJstr}); err != nil {
-			cl.lg.Fatal("failed to put AddMember changes to backend", zap.Error(err))
-		}
+	if err := cl.addMember2Backend(ai, confState, mem); err != nil {
+		cl.lg.Fatal("failed to put AddMember changes to backend", zap.Error(err))
 	}
 	cl.lg.Info("add member success",
 		zap.String("cluster-name", cl.name),
@@ -95,24 +83,9 @@ func (cl *Cluster) AddMember(ai uint64, confState *raftpb.ConfState, mem *Member
 func (cl *Cluster) RemoveMember(ai uint64, confState *raftpb.ConfState, ID uint64) {
 	defer syncutil.SchedLockers(&cl.rwmu)()
 	delete(cl.members, ID)
-	cl.removedMemberIDs[ID] = struct{}{}
-	memJstr, err := encodeMembers(cl.members)
-	if err != nil {
-		cl.lg.Fatal("failed to encode cluster peerMembers",
-			zap.Any("peerMembers", cl.members), zap.Error(err),
-		)
-	}
-	remJstr, err := encodeRemovedMemberIDs(cl.removedMemberIDs)
-	if err != nil {
-		cl.lg.Fatal("failed to encode cluster removedMemberIDs",
-			zap.Any("removedMemberIDs", cl.removedMemberIDs), zap.Error(err),
-		)
-	}
+	cl.removedIDs[ID] = struct{}{}
 	if cl.be != nil {
-		if err := cl.be.PutConfState(ai, *confState,
-			&kvpb.KV{Key: membersKey, Val: memJstr},
-			&kvpb.KV{Key: removedMemberIDsKey, Val: remJstr},
-		); err != nil {
+		if err := cl.removeMember2Backend(ai, confState, ID); err != nil {
 			cl.lg.Fatal("failed to put RemoveMember changes to backend", zap.Error(err))
 		}
 	}
@@ -126,16 +99,8 @@ func (cl *Cluster) RemoveMember(ai uint64, confState *raftpb.ConfState, ID uint6
 func (cl *Cluster) PromoteMember(ai uint64, confState *raftpb.ConfState, ID uint64) {
 	defer syncutil.SchedLockers(&cl.rwmu)()
 	cl.members[ID].IsLearner = true
-	memJstr, err := encodeMembers(cl.members)
-	if err != nil {
-		cl.lg.Fatal("failed to encode cluster peerMembers",
-			zap.Any("peerMembers", cl.members), zap.Error(err),
-		)
-	}
-	if cl.be != nil {
-		if err := cl.be.PutConfState(ai, *confState, &kvpb.KV{Key: membersKey, Val: memJstr}); err != nil {
-			cl.lg.Fatal("failed to put PromoteMember changes to backend", zap.Error(err))
-		}
+	if err := cl.promoteMember2Backend(ai, confState, ID); err != nil {
+		cl.lg.Fatal("failed to put PromoteMember changes to backend", zap.Error(err))
 	}
 	cl.lg.Info("add member success",
 		zap.String("cluster-name", cl.name),
@@ -144,28 +109,25 @@ func (cl *Cluster) PromoteMember(ai uint64, confState *raftpb.ConfState, ID uint
 	)
 }
 
-func (cl *Cluster) RecoverMembers() {
+func (cl *Cluster) RecoverMembers() error {
 	defer syncutil.SchedLockers(&cl.rwmu)()
-	memJstr, err := cl.be.Get(membersKey)
+	members, err := cl.membersFromBackend()
 	if err != nil {
-		cl.lg.Panic("failed to get cluster peerMembers from Backend", zap.Error(err))
+		cl.lg.Error("failed to recover members from backend", zap.Error(err))
+		return err
 	}
-	cl.members, err = decodeMembers(memJstr)
+
+	removedIDs, err := cl.removedIDsFromBackend()
 	if err != nil {
-		cl.lg.Panic("failed to decode cluster peerMembers", zap.Error(err))
+		cl.lg.Error("failed to recover removed member IDs from backend", zap.Error(err))
+		return err
 	}
-	remJstr, err := cl.be.Get(removedMemberIDsKey)
-	if err != nil {
-		cl.lg.Panic("failed to get cluster removedMemberIDs from Backend", zap.Error(err))
-	}
-	cl.removedMemberIDs, err = decodeRemovedMemberIDs(remJstr)
-	if err != nil {
-		cl.lg.Panic("failed to decode cluster removedMemberIDs", zap.Error(err))
-	}
-	cl.lg.Info("remove member success",
+	cl.members, cl.removedIDs = members, removedIDs
+	cl.lg.Info("recover members success",
 		zap.String("cluster-name", cl.name),
 		zap.Uint64("local-member-id", cl.localMemID),
 	)
+	return nil
 }
 
 type ConfChangeContext struct {
@@ -179,7 +141,16 @@ type ConfChangeResponse struct {
 
 func (cl *Cluster) ValidateConfChange(cc *raftpb.ConfChange) (ccCtx *ConfChangeContext, err error) {
 	defer syncutil.SchedLockers(cl.rwmu.RLocker())()
-	if _, ok := cl.removedMemberIDs[cc.NodeID]; ok {
+	members, err := cl.membersFromBackend()
+	if err != nil {
+		cl.lg.Panic("failed to recover members from backend", zap.Error(err))
+	}
+	removedIDs, err := cl.removedIDsFromBackend()
+	if err != nil {
+		cl.lg.Panic("failed to recover removed member IDs from backend", zap.Error(err))
+	}
+
+	if _, ok := removedIDs[cc.NodeID]; ok {
 		return nil, ErrIDRemoved
 	}
 	ccCtx = new(ConfChangeContext)
@@ -194,18 +165,18 @@ func (cl *Cluster) ValidateConfChange(cc *raftpb.ConfChange) (ccCtx *ConfChangeC
 	switch cc.Type {
 	case raftpb.ConfChangeAddNode, raftpb.ConfChangeAddLearnerNode:
 		if ccCtx.Promote {
-			if _, ok := cl.members[nodeID]; !ok {
+			if _, ok := members[nodeID]; !ok {
 				return ccCtx, ErrIDRemoved
 			}
-			if !cl.members[nodeID].IsLearner {
+			if !members[nodeID].IsLearner {
 				return ccCtx, ErrNotLearner
 			}
 		} else {
-			if _, ok := cl.members[nodeID]; ok {
+			if _, ok := members[nodeID]; ok {
 				return ccCtx, ErrIDExists
 			}
 			var addresses = map[string]struct{}{}
-			for _, mem := range cl.members {
+			for _, mem := range members {
 				addresses[mem.RaftAddress()] = struct{}{}
 				addresses[mem.ServiceAddress()] = struct{}{}
 			}
@@ -216,9 +187,81 @@ func (cl *Cluster) ValidateConfChange(cc *raftpb.ConfChange) (ccCtx *ConfChangeC
 			}
 		}
 	case raftpb.ConfChangeRemoveNode:
-		if _, ok := cl.members[nodeID]; !ok {
+		if _, ok := members[nodeID]; !ok {
 			return ccCtx, ErrIDNotExists
 		}
 	}
 	return
+}
+
+type Builder struct {
+	cl  *Cluster
+	err error
+}
+
+func NewClusterBuilder(lg *zap.Logger, name string, backend backend.Backend) *Builder {
+	return &Builder{
+		cl: &Cluster{
+			lg:         lg,
+			name:       name,
+			members:    map[uint64]*Member{},
+			removedIDs: map[uint64]struct{}{},
+			be:         backend,
+		},
+	}
+}
+
+func (b *Builder) SetLocalMember(ID uint64) *Builder {
+	b.cl.localMemID = ID
+	return b
+}
+
+func (b *Builder) AddMember(addrInfo AddrInfo) *Builder {
+	cl := b.cl
+	mem := NewMember(cl.name, addrInfo, false)
+	if _, ok := cl.members[mem.ID]; ok {
+		if b.err != nil {
+			b.err = ErrIDExists
+		}
+	}
+	cl.members[mem.ID] = mem
+	return b
+}
+
+func (b *Builder) AddMembers(addrInfos ...AddrInfo) *Builder {
+	for _, aif := range addrInfos {
+		b = b.AddMember(aif)
+	}
+	return b
+}
+
+func computeClusterID(members []*Member) uint64 {
+	var data = make([]byte, 0, len(members)*8)
+	var buf = make([]byte, 8)
+	for _, mem := range members {
+		binary.BigEndian.PutUint64(buf, mem.ID)
+		data = append(data, buf...)
+	}
+	sum := sha1.Sum(data)
+	return binary.BigEndian.Uint64(sum[:8])
+}
+
+func (b *Builder) Finish() (*Cluster, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	var addresses = map[string]struct{}{}
+	for _, mem := range b.cl.members {
+		if _, ok := addresses[mem.RaftAddress()]; ok {
+			return nil, ErrAddressClash
+		}
+		if _, ok := addresses[mem.ServiceAddress()]; ok {
+			return nil, ErrAddressClash
+		}
+	}
+	if b.cl.localMemID == raft.None {
+		return nil, ErrNoLocalID
+	}
+	b.cl.SetClusterID(computeClusterID(b.cl.GetMembers()))
+	return b.cl, nil
 }
