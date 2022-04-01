@@ -11,11 +11,14 @@ import (
 	"github.com/vigilglc/raft-lsm/server/utils/syncutil"
 	"go.etcd.io/etcd/client/pkg/v3/types"
 	"go.etcd.io/etcd/raft/v3"
+	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/etcdserver"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/rafthttp"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
+	"go.etcd.io/etcd/server/v3/etcdserver/api/v2http/httptypes"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/v2stats"
 	"go.uber.org/zap"
+	"net/http"
 	"strconv"
 	"time"
 )
@@ -106,7 +109,7 @@ func NewServer(cfg *config.ServerConfig) *Server {
 		ID:          types.ID(uintID),
 		URLs:        localURLs,
 		ClusterID:   types.ID(cl.GetClusterID()),
-		Raft:        nil, // TODO: implement Raft interface
+		Raft:        srv,
 		Snapshotter: srv.snapshotter,
 		ServerStats: srv.serverStats,
 		LeaderStats: srv.leaderStats,
@@ -118,4 +121,24 @@ func NewServer(cfg *config.ServerConfig) *Server {
 		srv.memStorage, srv.walStorage,
 	)
 	return srv
+}
+
+func (s *Server) Process(ctx context.Context, m raftpb.Message) error {
+	if s.cluster.IsIDRemoved(m.From) {
+		s.lg.Warn("cannot process message from removed member")
+		return httptypes.NewHTTPError(http.StatusForbidden, "cannot process message from removed member")
+	}
+	return s.raftNode.Step(ctx, m)
+}
+
+func (s *Server) IsIDRemoved(id uint64) bool {
+	return s.cluster.IsIDRemoved(id)
+}
+
+func (s *Server) ReportUnreachable(id uint64) {
+	s.raftNode.ReportUnreachable(id)
+}
+
+func (s *Server) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
+	s.raftNode.ReportSnapshot(id, status)
 }

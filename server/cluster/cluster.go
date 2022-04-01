@@ -53,6 +53,12 @@ func (cl *Cluster) GetMembers() []*Member {
 	return ret
 }
 
+func (cl *Cluster) IsIDRemoved(ID uint64) bool {
+	defer syncutil.SchedLockers(cl.rwmu.RLocker())()
+	_, ok := cl.removedIDs[ID]
+	return ok
+}
+
 func (cl *Cluster) SetBackend(be backend.Backend) {
 	cl.be = be
 }
