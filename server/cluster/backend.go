@@ -86,7 +86,10 @@ func (cl *Cluster) membersFromBackend() (members map[uint64]*Member, err error) 
 	for err == nil {
 		select {
 		case err = <-errC:
-		case kv := <-kvC:
+		case kv, ok := <-kvC:
+			if !ok {
+				break
+			}
 			if len(kv.Val) == 0 {
 				continue
 			}
@@ -105,7 +108,10 @@ func (cl *Cluster) removedIDsFromBackend() (removedIDs map[uint64]struct{}, err 
 	for err == nil {
 		select {
 		case err = <-errC:
-		case kv := <-kvC:
+		case kv, ok := <-kvC:
+			if !ok {
+				break
+			}
 			if len(kv.Val) == 0 {
 				continue
 			}
