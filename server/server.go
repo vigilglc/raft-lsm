@@ -7,6 +7,7 @@ import (
 	"github.com/vigilglc/raft-lsm/server/cluster"
 	"github.com/vigilglc/raft-lsm/server/config"
 	"github.com/vigilglc/raft-lsm/server/raftn"
+	scheduler "github.com/vigilglc/raft-lsm/server/scheduler"
 	"github.com/vigilglc/raft-lsm/server/utils/ntfyutil"
 	"github.com/vigilglc/raft-lsm/server/utils/syncutil"
 	"go.etcd.io/etcd/client/pkg/v3/types"
@@ -20,12 +21,14 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
+	"sync/atomic"
 	"time"
 )
 
 type Server struct {
 	// stats
 	inflightSnapshots int64
+	lead              uint64
 	term              uint64
 	committedIndex    uint64
 	serverStats       *v2stats.ServerStats
@@ -45,7 +48,7 @@ type Server struct {
 	readyC         chan struct{} // after Server
 	stopped        chan struct{}
 	done           chan struct{}
-	tptErrorC      chan error // transport ErrorC
+	errorC         chan error // transport ErrorC
 	readIndexWaitC chan context.Context
 	// req and resp
 	reqIDGen    *ntfyutil.IDGenerator
@@ -86,7 +89,7 @@ func NewServer(cfg *config.ServerConfig) *Server {
 		readyC:         make(chan struct{}),
 		stopped:        make(chan struct{}),
 		done:           make(chan struct{}),
-		tptErrorC:      make(chan error, 1),
+		errorC:         make(chan error, 1),
 		readIndexWaitC: make(chan context.Context),
 		// req and resp
 		reqIDGen:    ntfyutil.NewIDGenerator(uintID, time.Now()),
@@ -113,7 +116,7 @@ func NewServer(cfg *config.ServerConfig) *Server {
 		Snapshotter: srv.snapshotter,
 		ServerStats: srv.serverStats,
 		LeaderStats: srv.leaderStats,
-		ErrorC:      srv.tptErrorC,
+		ErrorC:      srv.errorC,
 	}
 	srv.raftNode = raftn.NewRaftNode(lg,
 		cfg.GetOneTickMillis(),
@@ -122,6 +125,68 @@ func NewServer(cfg *config.ServerConfig) *Server {
 	)
 	return srv
 }
+
+func (s *Server) Start() {
+	s.fw.Attach(s.linearizableReadIndexLoop)
+	s.fw.Attach(s.run)
+}
+
+func (s *Server) Stop() {
+	close(s.stopped)
+	s.fw.Wait()
+	<-s.done
+}
+
+func (s *Server) run() {
+	sched := scheduler.NewParallelScheduler(context.Background(), 2)
+
+	defer func() {
+		sched.Stop()
+		s.raftNode.Stop()
+		err := s.backend.Close()
+		if err != nil {
+			s.lg.Error("failed to close backend", zap.Error(err))
+		}
+		s.transport.Stop()
+	}()
+	if err := s.transport.Start(); err != nil {
+		s.lg.Panic("failed to start transport", zap.Error(err))
+	}
+	s.raftNode.Start(raftn.DataBridge{
+		SetLead: func(lead uint64) {
+			oldLead := atomic.LoadUint64(&s.lead)
+			if oldLead != lead {
+				atomic.StoreUint64(&s.lead, lead)
+				s.leaderChangeNtf.Notify()
+			}
+		},
+		SetCommittedIndex: func(cidx uint64) {
+			if atomic.LoadUint64(&s.committedIndex) < cidx {
+				atomic.StoreUint64(&s.committedIndex, cidx)
+			}
+		},
+	})
+
+	for true {
+		select {
+		case ap := <-s.raftNode.ApplyPatchC():
+			sched.Schedule(scheduler.Job{Meta: 0, Func: func(ctx context.Context) {
+				s.applyAll(ap)
+			}})
+		case rs := <-s.raftNode.ReadStatesC():
+			sched.Schedule(scheduler.Job{Meta: 1, Func: func(ctx context.Context) {
+				s.processReadStates(rs)
+			}})
+		case err := <-s.errorC:
+			s.lg.Warn("server error", zap.Error(err))
+			return
+		case <-s.stopped:
+			return
+		}
+	}
+}
+
+// region rafthttp.Raft implementation
 
 func (s *Server) Process(ctx context.Context, m raftpb.Message) error {
 	if s.cluster.IsIDRemoved(m.From) {
@@ -142,3 +207,5 @@ func (s *Server) ReportUnreachable(id uint64) {
 func (s *Server) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
 	s.raftNode.ReportSnapshot(id, status)
 }
+
+// endregion

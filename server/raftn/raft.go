@@ -46,8 +46,8 @@ func NewRaftNode(
 }
 
 type DataBridge struct {
-	setLead           func(lead uint64)
-	setCommittedIndex func(cidx uint64)
+	SetLead           func(lead uint64)
+	SetCommittedIndex func(cidx uint64)
 }
 
 type ApplyPatch struct {
@@ -81,7 +81,7 @@ func (r *RaftNode) Start(bridge DataBridge) {
 				if rd.SoftState != nil {
 					if rd.SoftState.Lead != raft.None && rd.SoftState.Lead != lead {
 						lead = rd.SoftState.Lead
-						bridge.setLead(lead)
+						bridge.SetLead(lead)
 					}
 					isLead = rd.SoftState.RaftState == raft.StateLeader
 				}
