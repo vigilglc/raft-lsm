@@ -24,9 +24,32 @@ type Cluster struct {
 	be         backend.Backend
 }
 
+func (cl *Cluster) DataClone() *Cluster {
+	defer syncutil.SchedLockers(cl.rwmu.RLocker())()
+	ret := &Cluster{
+		name:       cl.name,
+		id:         cl.id,
+		localMemID: cl.localMemID,
+		members:    map[uint64]*Member{},
+		removedIDs: map[uint64]struct{}{},
+	}
+	for _, mem := range cl.members {
+		ret.members[mem.ID] = mem.Clone()
+	}
+	for remID := range cl.removedIDs {
+		ret.removedIDs[remID] = struct{}{}
+	}
+	return ret
+}
+
 func (cl *Cluster) GetClusterID() uint64 {
 	defer syncutil.SchedLockers(cl.rwmu.RLocker())()
 	return cl.id
+}
+
+func (cl *Cluster) GetClusterName() string {
+	defer syncutil.SchedLockers(cl.rwmu.RLocker())()
+	return cl.name
 }
 
 func (cl *Cluster) SetClusterID(ID uint64) {
@@ -41,14 +64,23 @@ func (cl *Cluster) GetLocalMemberID() uint64 {
 
 func (cl *Cluster) GetLocalMember() *Member {
 	defer syncutil.SchedLockers(cl.rwmu.RLocker())()
-	return cl.members[cl.localMemID]
+	return cl.members[cl.localMemID].Clone()
 }
 
 func (cl *Cluster) GetMembers() []*Member {
 	defer syncutil.SchedLockers(cl.rwmu.RLocker())()
 	var ret []*Member
 	for _, mem := range cl.members {
-		ret = append(ret, mem)
+		ret = append(ret, mem.Clone())
+	}
+	return ret
+}
+
+func (cl *Cluster) GetRemovedIDs() []uint64 {
+	defer syncutil.SchedLockers(cl.rwmu.RLocker())()
+	var ret []uint64
+	for ID, _ := range cl.removedIDs {
+		ret = append(ret, ID)
 	}
 	return ret
 }
@@ -73,6 +105,7 @@ func (cl *Cluster) SkipConfState(ai uint64) {
 }
 
 func (cl *Cluster) AddMember(ai uint64, confState *raftpb.ConfState, mem *Member) {
+	mem = mem.Clone()
 	defer syncutil.SchedLockers(&cl.rwmu)()
 	cl.members[mem.ID] = mem
 	if err := cl.addMember2Backend(ai, confState, mem); err != nil {

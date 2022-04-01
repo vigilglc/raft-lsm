@@ -3,9 +3,12 @@ package server
 import (
 	"context"
 	"github.com/gogo/protobuf/proto"
+	json "github.com/json-iterator/go"
 	"github.com/vigilglc/raft-lsm/server/api"
 	"github.com/vigilglc/raft-lsm/server/backend"
 	"github.com/vigilglc/raft-lsm/server/backend/kvpb"
+	"github.com/vigilglc/raft-lsm/server/cluster"
+	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 func (s *Server) doInternalRequest(ctx context.Context, req api.InternalRequest) (resp proto.Message, err error) {
@@ -43,6 +46,8 @@ func (s *Server) Get(ctx context.Context, request *api.GetRequest) (resp *api.Ge
 	if backend.ValidateKey(request.Key) {
 		return resp, backend.ErrInvalidKey
 	}
+	ctx, cancel := context.WithTimeout(ctx, s.Config.GetRequestTimeout())
+	defer cancel()
 	if request.Linearizable {
 		if err = s.linearizableReadNotify(ctx); err != nil {
 			return
@@ -104,6 +109,13 @@ func (s *Server) Range(agent api.KVService_RangeServer) (err error) {
 	if req.OP != api.RangeRequest_BEGIN {
 		return ErrBadRequest
 	}
+	ctx, cancel := context.WithTimeout(agent.Context(), s.Config.GetRequestTimeout())
+	defer cancel()
+	if req.Linearizable {
+		if err = s.linearizableReadNotify(ctx); err != nil {
+			return
+		}
+	}
 	if err = agent.Send(&api.RangeResponse{HasMore: true}); err != nil {
 		return err
 	}
@@ -145,6 +157,139 @@ func readKVsAtMostN(kvC <-chan *kvpb.KV, errC <-chan error, n uint64) (res []*kv
 		}
 	}
 	return
+}
+
+// endregion
+
+func (s *Server) doConfigure(ctx context.Context, confChange raftpb.ConfChange) (members []*cluster.Member, err error) {
+	ccID := s.reqIDGen.Next()
+	confChange.ID = ccID
+	notifier := s.reqNotifier.Register(ccID)
+	defer s.reqNotifier.Notify(ccID, nil)
+
+	err = s.raftNode.ProposeConfChange(ctx, confChange)
+	if err != nil {
+		return nil, err
+	}
+	select {
+	case v := <-notifier:
+		result := v.(*cluster.ConfChangeResponse)
+		return result.Members, result.Err
+	case <-ctx.Done():
+		err = ctx.Err()
+	case <-s.stopped:
+		err = ErrStopped
+	}
+	return
+}
+
+// region cluster impls
+
+func (s *Server) AddMember(ctx context.Context, request *api.AddMemberRequest) (resp *api.AddMemberResponse, err error) {
+	resp = new(api.AddMemberResponse)
+	servPort, sOk := tryConvertUint32To16(request.Member.ServicePort)
+	raftPort, rOk := tryConvertUint32To16(request.Member.RaftPort)
+	if !sOk || !rOk {
+		return resp, ErrBadRequest
+	}
+	mem := cluster.NewMember(s.cluster.GetClusterName(),
+		cluster.AddrInfo{
+			Name:        request.Member.Name,
+			Host:        request.Member.Host,
+			ServicePort: servPort,
+			RaftPort:    raftPort,
+		}, request.Member.IsLearner)
+	ccCtx := cluster.ConfChangeContext{Member: *mem}
+	data, err := json.Marshal(ccCtx)
+	if err != nil {
+		return resp, err
+	}
+	var ccType = raftpb.ConfChangeAddNode
+	if mem.IsLearner {
+		ccType = raftpb.ConfChangeAddLearnerNode
+	}
+	members, err := s.doConfigure(ctx, raftpb.ConfChange{
+		Type:    ccType,
+		NodeID:  mem.ID,
+		Context: data,
+	})
+	resp.Members = clusterMemberSlc2ApiMemberSlc(members)
+	return resp, err
+}
+
+func tryConvertUint32To16(n uint32) (uint16, bool) {
+	if uint32(uint16(n)) == n {
+		return uint16(n), true
+	}
+	return uint16(n), false
+}
+
+func (s *Server) PromoteMember(ctx context.Context, request *api.PromoteMemberRequest) (resp *api.PromoteMemberResponse, err error) {
+	resp = new(api.PromoteMemberResponse)
+	mem := &cluster.Member{ID: request.NodeID}
+	ccCtx := cluster.ConfChangeContext{Member: *mem}
+	data, err := json.Marshal(ccCtx)
+	if err != nil {
+		return resp, err
+	}
+	members, err := s.doConfigure(ctx, raftpb.ConfChange{
+		Type:    raftpb.ConfChangeAddNode,
+		NodeID:  mem.ID,
+		Context: data,
+	})
+	resp.Members = clusterMemberSlc2ApiMemberSlc(members)
+	return resp, err
+}
+
+func (s *Server) RemoveMember(ctx context.Context, request *api.RemoveMemberRequest) (resp *api.RemoveMemberResponse, err error) {
+	resp = new(api.RemoveMemberResponse)
+	mem := &cluster.Member{ID: request.NodeID}
+	ccCtx := cluster.ConfChangeContext{Member: *mem}
+	data, err := json.Marshal(ccCtx)
+	if err != nil {
+		return resp, err
+	}
+	members, err := s.doConfigure(ctx, raftpb.ConfChange{
+		Type:    raftpb.ConfChangeRemoveNode,
+		NodeID:  mem.ID,
+		Context: data,
+	})
+	resp.Members = clusterMemberSlc2ApiMemberSlc(members)
+	return resp, err
+}
+
+func (s *Server) ClusterStatus(ctx context.Context, request *api.ClusterStatusRequest) (resp *api.ClusterStatusResponse, err error) {
+	resp = new(api.ClusterStatusResponse)
+	ctx, cancel := context.WithTimeout(ctx, s.Config.GetRequestTimeout())
+	defer cancel()
+	if request.Linearizable {
+		if err = s.linearizableReadNotify(ctx); err != nil {
+			return
+		}
+	}
+	cloned := s.cluster.DataClone()
+	resp = &api.ClusterStatusResponse{
+		ID:         cloned.GetClusterID(),
+		Name:       cloned.GetClusterName(),
+		Members:    clusterMemberSlc2ApiMemberSlc(cloned.GetMembers()),
+		RemovedIDs: cloned.GetRemovedIDs(),
+	}
+	return resp, err
+}
+
+func clusterMemberSlc2ApiMemberSlc(members []*cluster.Member) []*api.Member {
+	var ret = make([]*api.Member, 0, len(members))
+	for _, mem := range members {
+		ret = append(ret, &api.Member{
+			ID:          mem.ID,
+			Name:        mem.Name,
+			Host:        mem.Host,
+			RaftPort:    uint32(mem.RaftPort),
+			ServicePort: uint32(mem.ServicePort),
+			IsLearner:   mem.IsLearner,
+		})
+	}
+	return ret
 }
 
 // endregion

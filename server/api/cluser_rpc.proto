@@ -11,7 +11,7 @@ service ClusterService {
   rpc AddMember(AddMemberRequest) returns (AddMemberResponse);
   rpc PromoteMember(PromoteMemberRequest) returns (PromoteMemberResponse);
   rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
-  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
+  rpc ClusterStatus(ClusterStatusRequest) returns (ClusterStatusResponse);
 }
 
 message Member{
@@ -48,11 +48,14 @@ message RemoveMemberResponse{
   repeated Member members = 1;
 }
 
-message ListMembersRequest{
+message ClusterStatusRequest{
   bool linearizable = 255;
 }
 
-message ListMembersResponse{
-  repeated Member members = 1;
+message ClusterStatusResponse{
+  uint64 ID = 1;
+  string name = 2;
+  repeated Member members = 3;
+  repeated uint64 removedIDs = 4;
 }
 

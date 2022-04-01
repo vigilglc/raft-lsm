@@ -375,22 +375,22 @@ func (m *RemoveMemberResponse) GetMembers() []*Member {
 	return nil
 }
 
-type ListMembersRequest struct {
+type ClusterStatusRequest struct {
 	Linearizable bool `protobuf:"varint,255,opt,name=linearizable,proto3" json:"linearizable,omitempty"`
 }
 
-func (m *ListMembersRequest) Reset()         { *m = ListMembersRequest{} }
-func (m *ListMembersRequest) String() string { return proto.CompactTextString(m) }
-func (*ListMembersRequest) ProtoMessage()    {}
-func (*ListMembersRequest) Descriptor() ([]byte, []int) {
+func (m *ClusterStatusRequest) Reset()         { *m = ClusterStatusRequest{} }
+func (m *ClusterStatusRequest) String() string { return proto.CompactTextString(m) }
+func (*ClusterStatusRequest) ProtoMessage()    {}
+func (*ClusterStatusRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9f88e8ad5aaf357f, []int{7}
 }
-func (m *ListMembersRequest) XXX_Unmarshal(b []byte) error {
+func (m *ClusterStatusRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *ListMembersRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *ClusterStatusRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_ListMembersRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_ClusterStatusRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -400,41 +400,44 @@ func (m *ListMembersRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, 
 		return b[:n], nil
 	}
 }
-func (m *ListMembersRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ListMembersRequest.Merge(m, src)
+func (m *ClusterStatusRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ClusterStatusRequest.Merge(m, src)
 }
-func (m *ListMembersRequest) XXX_Size() int {
+func (m *ClusterStatusRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *ListMembersRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_ListMembersRequest.DiscardUnknown(m)
+func (m *ClusterStatusRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ClusterStatusRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ListMembersRequest proto.InternalMessageInfo
+var xxx_messageInfo_ClusterStatusRequest proto.InternalMessageInfo
 
-func (m *ListMembersRequest) GetLinearizable() bool {
+func (m *ClusterStatusRequest) GetLinearizable() bool {
 	if m != nil {
 		return m.Linearizable
 	}
 	return false
 }
 
-type ListMembersResponse struct {
-	Members []*Member `protobuf:"bytes,1,rep,name=members,proto3" json:"members,omitempty"`
+type ClusterStatusResponse struct {
+	ID         uint64    `protobuf:"varint,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	Name       string    `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Members    []*Member `protobuf:"bytes,3,rep,name=members,proto3" json:"members,omitempty"`
+	RemovedIDs []uint64  `protobuf:"varint,4,rep,packed,name=removedIDs,proto3" json:"removedIDs,omitempty"`
 }
 
-func (m *ListMembersResponse) Reset()         { *m = ListMembersResponse{} }
-func (m *ListMembersResponse) String() string { return proto.CompactTextString(m) }
-func (*ListMembersResponse) ProtoMessage()    {}
-func (*ListMembersResponse) Descriptor() ([]byte, []int) {
+func (m *ClusterStatusResponse) Reset()         { *m = ClusterStatusResponse{} }
+func (m *ClusterStatusResponse) String() string { return proto.CompactTextString(m) }
+func (*ClusterStatusResponse) ProtoMessage()    {}
+func (*ClusterStatusResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9f88e8ad5aaf357f, []int{8}
 }
-func (m *ListMembersResponse) XXX_Unmarshal(b []byte) error {
+func (m *ClusterStatusResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *ListMembersResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *ClusterStatusResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_ListMembersResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_ClusterStatusResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -444,21 +447,42 @@ func (m *ListMembersResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte,
 		return b[:n], nil
 	}
 }
-func (m *ListMembersResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ListMembersResponse.Merge(m, src)
+func (m *ClusterStatusResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ClusterStatusResponse.Merge(m, src)
 }
-func (m *ListMembersResponse) XXX_Size() int {
+func (m *ClusterStatusResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *ListMembersResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_ListMembersResponse.DiscardUnknown(m)
+func (m *ClusterStatusResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ClusterStatusResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ListMembersResponse proto.InternalMessageInfo
+var xxx_messageInfo_ClusterStatusResponse proto.InternalMessageInfo
 
-func (m *ListMembersResponse) GetMembers() []*Member {
+func (m *ClusterStatusResponse) GetID() uint64 {
+	if m != nil {
+		return m.ID
+	}
+	return 0
+}
+
+func (m *ClusterStatusResponse) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *ClusterStatusResponse) GetMembers() []*Member {
 	if m != nil {
 		return m.Members
+	}
+	return nil
+}
+
+func (m *ClusterStatusResponse) GetRemovedIDs() []uint64 {
+	if m != nil {
+		return m.RemovedIDs
 	}
 	return nil
 }
@@ -471,43 +495,44 @@ func init() {
 	proto.RegisterType((*PromoteMemberResponse)(nil), "api.PromoteMemberResponse")
 	proto.RegisterType((*RemoveMemberRequest)(nil), "api.RemoveMemberRequest")
 	proto.RegisterType((*RemoveMemberResponse)(nil), "api.RemoveMemberResponse")
-	proto.RegisterType((*ListMembersRequest)(nil), "api.ListMembersRequest")
-	proto.RegisterType((*ListMembersResponse)(nil), "api.ListMembersResponse")
+	proto.RegisterType((*ClusterStatusRequest)(nil), "api.ClusterStatusRequest")
+	proto.RegisterType((*ClusterStatusResponse)(nil), "api.ClusterStatusResponse")
 }
 
 func init() { proto.RegisterFile("cluser_rpc.proto", fileDescriptor_9f88e8ad5aaf357f) }
 
 var fileDescriptor_9f88e8ad5aaf357f = []byte{
-	// 453 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x53, 0x4d, 0x6f, 0xd3, 0x40,
-	0x10, 0xcd, 0x26, 0xc1, 0x34, 0x93, 0xb6, 0x2a, 0xdb, 0x0f, 0xb6, 0x16, 0xb2, 0x2c, 0x23, 0xa4,
-	0x5c, 0xea, 0x4a, 0xe5, 0x80, 0xa8, 0x00, 0x01, 0xad, 0x90, 0x2a, 0x15, 0xa9, 0x32, 0x3f, 0x00,
-	0xd9, 0xce, 0x34, 0x5d, 0xc9, 0xf6, 0x9a, 0xdd, 0x75, 0x0f, 0xfc, 0x0a, 0xee, 0xf0, 0x83, 0x38,
-	0xf6, 0xc8, 0x11, 0x25, 0x3f, 0x04, 0xd4, 0xb5, 0x49, 0x6d, 0xd7, 0x07, 0x72, 0x9b, 0x79, 0xef,
-	0xcd, 0xbc, 0xd5, 0x1b, 0x1b, 0xb6, 0xe2, 0xa4, 0x50, 0x28, 0x3f, 0xcb, 0x3c, 0xf6, 0x73, 0x29,
-	0xb4, 0xa0, 0x83, 0x30, 0xe7, 0xf6, 0xc1, 0x8c, 0xeb, 0xab, 0x22, 0xf2, 0x63, 0x91, 0x1e, 0xce,
-	0xc4, 0x4c, 0x1c, 0x1a, 0x2e, 0x2a, 0x2e, 0x4d, 0x67, 0x1a, 0x53, 0x95, 0x33, 0xde, 0x0f, 0x02,
-	0xd6, 0x47, 0x4c, 0x23, 0x94, 0x74, 0x13, 0xfa, 0x67, 0xa7, 0x8c, 0xb8, 0x64, 0x32, 0x0c, 0xfa,
-	0x67, 0xa7, 0x94, 0xc2, 0x30, 0x0b, 0x53, 0x64, 0x7d, 0x97, 0x4c, 0x46, 0x81, 0xa9, 0x6f, 0xb1,
-	0x2b, 0xa1, 0x34, 0x1b, 0x94, 0xd8, 0x6d, 0x4d, 0x6d, 0x58, 0x93, 0xe1, 0xa5, 0xbe, 0x10, 0x52,
-	0xb3, 0xa1, 0x4b, 0x26, 0x1b, 0xc1, 0xb2, 0xa7, 0x2e, 0x8c, 0x15, 0xca, 0x6b, 0x1e, 0xa3, 0xa1,
-	0x1f, 0x18, 0xba, 0x0e, 0xd1, 0x27, 0x30, 0xe2, 0xea, 0x1c, 0x43, 0x99, 0xa1, 0x64, 0x96, 0x4b,
-	0x26, 0x6b, 0xc1, 0x1d, 0xe0, 0xbd, 0x80, 0xad, 0x77, 0xd3, 0x69, 0xf9, 0xc0, 0x00, 0xbf, 0x14,
-	0xa8, 0x34, 0x7d, 0x0a, 0x56, 0x6a, 0x00, 0xf3, 0xd6, 0xf1, 0xd1, 0xd8, 0x0f, 0x73, 0xee, 0x57,
-	0x9a, 0x8a, 0xf2, 0x8e, 0xe1, 0x51, 0x6d, 0x50, 0xe5, 0x22, 0x53, 0x48, 0x9f, 0xc1, 0xc3, 0x92,
-	0x56, 0x8c, 0xb8, 0x83, 0xf6, 0xe8, 0x3f, 0xce, 0xf3, 0x61, 0xe7, 0x42, 0x8a, 0x54, 0x68, 0x6c,
-	0x1a, 0xef, 0x81, 0x95, 0x89, 0x29, 0x2e, 0x43, 0xaa, 0x3a, 0xef, 0x0d, 0xec, 0xb6, 0xf4, 0xab,
-	0xf9, 0x1d, 0xc0, 0x76, 0x80, 0xa9, 0xb8, 0xfe, 0x4f, 0xbb, 0xd7, 0xb0, 0xd3, 0x94, 0xaf, 0xe6,
-	0xf6, 0x12, 0xe8, 0x39, 0x57, 0xba, 0x84, 0xd5, 0x5d, 0xa8, 0xeb, 0x09, 0xcf, 0x30, 0x94, 0xfc,
-	0x6b, 0x18, 0x25, 0xc8, 0xfe, 0x10, 0x73, 0x8a, 0x06, 0xe8, 0xbd, 0x82, 0xed, 0xc6, 0xe8, 0x4a,
-	0xc6, 0x47, 0xdf, 0xfb, 0xb0, 0x79, 0x92, 0x14, 0x4a, 0xa3, 0xfc, 0x54, 0x7e, 0x00, 0xf4, 0x18,
-	0x46, 0xcb, 0x2b, 0xd1, 0x5d, 0x33, 0xd5, 0x3e, 0xb7, 0xbd, 0xd7, 0x86, 0x2b, 0xd7, 0x0f, 0xb0,
-	0xd1, 0x48, 0x9d, 0xee, 0x1b, 0x61, 0xd7, 0xe5, 0x6c, 0xbb, 0x8b, 0xaa, 0xf6, 0x9c, 0xc0, 0x7a,
-	0x3d, 0x4e, 0xca, 0x8c, 0xb6, 0xe3, 0x20, 0xf6, 0x7e, 0x07, 0x53, 0x2d, 0x79, 0x0b, 0xe3, 0x5a,
-	0x32, 0xf4, 0xb1, 0x51, 0xde, 0x8f, 0xd9, 0x66, 0xf7, 0x89, 0x72, 0xc3, 0x7b, 0xf6, 0x73, 0xee,
-	0x90, 0x9b, 0xb9, 0x43, 0x7e, 0xcf, 0x1d, 0xf2, 0x6d, 0xe1, 0xf4, 0x6e, 0x16, 0x4e, 0xef, 0xd7,
-	0xc2, 0xe9, 0x45, 0x96, 0xf9, 0x53, 0x9f, 0xff, 0x0d, 0x00, 0x00, 0xff, 0xff, 0x8e, 0x63, 0x94,
-	0x26, 0xf1, 0x03, 0x00, 0x00,
+	// 477 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x53, 0xc1, 0x6a, 0xdb, 0x4c,
+	0x10, 0xf6, 0x5a, 0xfa, 0xf5, 0xc7, 0xe3, 0x24, 0xa4, 0x5b, 0x3b, 0x6c, 0x44, 0x11, 0x42, 0xa5,
+	0xa0, 0x4b, 0x14, 0x48, 0x0f, 0x85, 0x94, 0x16, 0xda, 0x98, 0x82, 0xa1, 0x85, 0xa0, 0x3e, 0x40,
+	0x91, 0xec, 0x89, 0x23, 0xb0, 0xb4, 0xea, 0xee, 0x2a, 0x87, 0x1e, 0xfb, 0x04, 0x7d, 0x80, 0x5e,
+	0xfa, 0x36, 0x3d, 0xe6, 0xd8, 0x63, 0xb1, 0x1f, 0xa4, 0x25, 0x2b, 0xc5, 0x96, 0x84, 0x0a, 0xc9,
+	0x6d, 0xe6, 0xfb, 0x66, 0x76, 0x3e, 0xcd, 0x37, 0x82, 0x83, 0xd9, 0xb2, 0x90, 0x28, 0x3e, 0x89,
+	0x7c, 0x16, 0xe4, 0x82, 0x2b, 0x4e, 0x8d, 0x28, 0x4f, 0xec, 0xe3, 0x45, 0xa2, 0xae, 0x8a, 0x38,
+	0x98, 0xf1, 0xf4, 0x64, 0xc1, 0x17, 0xfc, 0x44, 0x73, 0x71, 0x71, 0xa9, 0x33, 0x9d, 0xe8, 0xa8,
+	0xec, 0xf1, 0xbe, 0x13, 0xb0, 0x3e, 0x60, 0x1a, 0xa3, 0xa0, 0xfb, 0xd0, 0x9f, 0x4e, 0x18, 0x71,
+	0x89, 0x6f, 0x86, 0xfd, 0xe9, 0x84, 0x52, 0x30, 0xb3, 0x28, 0x45, 0xd6, 0x77, 0x89, 0x3f, 0x08,
+	0x75, 0x7c, 0x8b, 0x5d, 0x71, 0xa9, 0x98, 0x51, 0x62, 0xb7, 0x31, 0xb5, 0x61, 0x47, 0x44, 0x97,
+	0xea, 0x82, 0x0b, 0xc5, 0x4c, 0x97, 0xf8, 0x7b, 0xe1, 0x26, 0xa7, 0x2e, 0x0c, 0x25, 0x8a, 0xeb,
+	0x64, 0x86, 0x9a, 0xfe, 0x4f, 0xd3, 0x75, 0x88, 0x3e, 0x81, 0x41, 0x22, 0xdf, 0x63, 0x24, 0x32,
+	0x14, 0xcc, 0x72, 0x89, 0xbf, 0x13, 0x6e, 0x01, 0xef, 0x05, 0x1c, 0xbc, 0x99, 0xcf, 0x4b, 0x81,
+	0x21, 0x7e, 0x2e, 0x50, 0x2a, 0xfa, 0x14, 0xac, 0x54, 0x03, 0x5a, 0xeb, 0xf0, 0x74, 0x18, 0x44,
+	0x79, 0x12, 0x54, 0x35, 0x15, 0xe5, 0x9d, 0xc1, 0xa3, 0x5a, 0xa3, 0xcc, 0x79, 0x26, 0x91, 0x3e,
+	0x83, 0xff, 0x4b, 0x5a, 0x32, 0xe2, 0x1a, 0xed, 0xd6, 0x3b, 0xce, 0x0b, 0x60, 0x74, 0x21, 0x78,
+	0xca, 0x15, 0x36, 0x07, 0x1f, 0x82, 0x95, 0xf1, 0x39, 0x6e, 0x96, 0x54, 0x65, 0xde, 0x6b, 0x18,
+	0xb7, 0xea, 0x1f, 0x36, 0xef, 0x18, 0x1e, 0x87, 0x98, 0xf2, 0xeb, 0x7b, 0x8e, 0x7b, 0x05, 0xa3,
+	0x66, 0xf9, 0xc3, 0xa6, 0xbd, 0x84, 0xd1, 0xf9, 0xb2, 0x90, 0x0a, 0xc5, 0x47, 0x15, 0xa9, 0x42,
+	0x6e, 0xd7, 0xba, 0xbb, 0x4c, 0x32, 0x8c, 0x44, 0xf2, 0x25, 0x8a, 0x97, 0xc8, 0xfe, 0x10, 0x6d,
+	0x46, 0x03, 0xf4, 0xbe, 0x12, 0x18, 0xb7, 0xba, 0xab, 0xe9, 0xf7, 0xb9, 0x9e, 0x9a, 0x42, 0xe3,
+	0xdf, 0x0a, 0xa9, 0x03, 0x20, 0xf4, 0x07, 0xce, 0xa7, 0x13, 0xc9, 0x4c, 0xd7, 0xf0, 0xcd, 0xb0,
+	0x86, 0x9c, 0xfe, 0xe8, 0xc3, 0xfe, 0x9d, 0x88, 0xf2, 0x92, 0xe8, 0x19, 0x0c, 0x36, 0x76, 0xd3,
+	0xb1, 0x7e, 0xb5, 0x7d, 0x37, 0xf6, 0x61, 0x1b, 0xae, 0x94, 0xbf, 0x83, 0xbd, 0x86, 0x7d, 0xf4,
+	0x48, 0x17, 0x76, 0x9d, 0x80, 0x6d, 0x77, 0x51, 0xd5, 0x3b, 0xe7, 0xb0, 0x5b, 0xf7, 0x85, 0x32,
+	0x5d, 0xdb, 0xe1, 0xac, 0x7d, 0xd4, 0xc1, 0x6c, 0xc5, 0x34, 0xf6, 0x5b, 0x89, 0xe9, 0x72, 0xac,
+	0x12, 0xd3, 0x69, 0xc7, 0x5b, 0xf6, 0x73, 0xe5, 0x90, 0x9b, 0x95, 0x43, 0x7e, 0xaf, 0x1c, 0xf2,
+	0x6d, 0xed, 0xf4, 0x6e, 0xd6, 0x4e, 0xef, 0xd7, 0xda, 0xe9, 0xc5, 0x96, 0xfe, 0xf1, 0x9f, 0xff,
+	0x0d, 0x00, 0x00, 0xff, 0xff, 0x99, 0xf6, 0x5a, 0x30, 0x40, 0x04, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -525,7 +550,7 @@ type ClusterServiceClient interface {
 	AddMember(ctx context.Context, in *AddMemberRequest, opts ...grpc.CallOption) (*AddMemberResponse, error)
 	PromoteMember(ctx context.Context, in *PromoteMemberRequest, opts ...grpc.CallOption) (*PromoteMemberResponse, error)
 	RemoveMember(ctx context.Context, in *RemoveMemberRequest, opts ...grpc.CallOption) (*RemoveMemberResponse, error)
-	ListMembers(ctx context.Context, in *ListMembersRequest, opts ...grpc.CallOption) (*ListMembersResponse, error)
+	ClusterStatus(ctx context.Context, in *ClusterStatusRequest, opts ...grpc.CallOption) (*ClusterStatusResponse, error)
 }
 
 type clusterServiceClient struct {
@@ -563,9 +588,9 @@ func (c *clusterServiceClient) RemoveMember(ctx context.Context, in *RemoveMembe
 	return out, nil
 }
 
-func (c *clusterServiceClient) ListMembers(ctx context.Context, in *ListMembersRequest, opts ...grpc.CallOption) (*ListMembersResponse, error) {
-	out := new(ListMembersResponse)
-	err := c.cc.Invoke(ctx, "/api.ClusterService/ListMembers", in, out, opts...)
+func (c *clusterServiceClient) ClusterStatus(ctx context.Context, in *ClusterStatusRequest, opts ...grpc.CallOption) (*ClusterStatusResponse, error) {
+	out := new(ClusterStatusResponse)
+	err := c.cc.Invoke(ctx, "/api.ClusterService/ClusterStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -577,7 +602,7 @@ type ClusterServiceServer interface {
 	AddMember(context.Context, *AddMemberRequest) (*AddMemberResponse, error)
 	PromoteMember(context.Context, *PromoteMemberRequest) (*PromoteMemberResponse, error)
 	RemoveMember(context.Context, *RemoveMemberRequest) (*RemoveMemberResponse, error)
-	ListMembers(context.Context, *ListMembersRequest) (*ListMembersResponse, error)
+	ClusterStatus(context.Context, *ClusterStatusRequest) (*ClusterStatusResponse, error)
 }
 
 // UnimplementedClusterServiceServer can be embedded to have forward compatible implementations.
@@ -593,8 +618,8 @@ func (*UnimplementedClusterServiceServer) PromoteMember(ctx context.Context, req
 func (*UnimplementedClusterServiceServer) RemoveMember(ctx context.Context, req *RemoveMemberRequest) (*RemoveMemberResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveMember not implemented")
 }
-func (*UnimplementedClusterServiceServer) ListMembers(ctx context.Context, req *ListMembersRequest) (*ListMembersResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListMembers not implemented")
+func (*UnimplementedClusterServiceServer) ClusterStatus(ctx context.Context, req *ClusterStatusRequest) (*ClusterStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClusterStatus not implemented")
 }
 
 func RegisterClusterServiceServer(s *grpc.Server, srv ClusterServiceServer) {
@@ -655,20 +680,20 @@ func _ClusterService_RemoveMember_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ClusterService_ListMembers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListMembersRequest)
+func _ClusterService_ClusterStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClusterStatusRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ClusterServiceServer).ListMembers(ctx, in)
+		return srv.(ClusterServiceServer).ClusterStatus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/api.ClusterService/ListMembers",
+		FullMethod: "/api.ClusterService/ClusterStatus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ClusterServiceServer).ListMembers(ctx, req.(*ListMembersRequest))
+		return srv.(ClusterServiceServer).ClusterStatus(ctx, req.(*ClusterStatusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -690,8 +715,8 @@ var _ClusterService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _ClusterService_RemoveMember_Handler,
 		},
 		{
-			MethodName: "ListMembers",
-			Handler:    _ClusterService_ListMembers_Handler,
+			MethodName: "ClusterStatus",
+			Handler:    _ClusterService_ClusterStatus_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -962,7 +987,7 @@ func (m *RemoveMemberResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *ListMembersRequest) Marshal() (dAtA []byte, err error) {
+func (m *ClusterStatusRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -972,12 +997,12 @@ func (m *ListMembersRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ListMembersRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *ClusterStatusRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *ListMembersRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *ClusterStatusRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -997,7 +1022,7 @@ func (m *ListMembersRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *ListMembersResponse) Marshal() (dAtA []byte, err error) {
+func (m *ClusterStatusResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -1007,16 +1032,34 @@ func (m *ListMembersResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ListMembersResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *ClusterStatusResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *ListMembersResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *ClusterStatusResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
+	if len(m.RemovedIDs) > 0 {
+		dAtA3 := make([]byte, len(m.RemovedIDs)*10)
+		var j2 int
+		for _, num := range m.RemovedIDs {
+			for num >= 1<<7 {
+				dAtA3[j2] = uint8(uint64(num)&0x7f | 0x80)
+				num >>= 7
+				j2++
+			}
+			dAtA3[j2] = uint8(num)
+			j2++
+		}
+		i -= j2
+		copy(dAtA[i:], dAtA3[:j2])
+		i = encodeVarintCluserRpc(dAtA, i, uint64(j2))
+		i--
+		dAtA[i] = 0x22
+	}
 	if len(m.Members) > 0 {
 		for iNdEx := len(m.Members) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -1028,8 +1071,20 @@ func (m *ListMembersResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 				i = encodeVarintCluserRpc(dAtA, i, uint64(size))
 			}
 			i--
-			dAtA[i] = 0xa
+			dAtA[i] = 0x1a
 		}
+	}
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintCluserRpc(dAtA, i, uint64(len(m.Name)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if m.ID != 0 {
+		i = encodeVarintCluserRpc(dAtA, i, uint64(m.ID))
+		i--
+		dAtA[i] = 0x8
 	}
 	return len(dAtA) - i, nil
 }
@@ -1156,7 +1211,7 @@ func (m *RemoveMemberResponse) Size() (n int) {
 	return n
 }
 
-func (m *ListMembersRequest) Size() (n int) {
+func (m *ClusterStatusRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1168,17 +1223,31 @@ func (m *ListMembersRequest) Size() (n int) {
 	return n
 }
 
-func (m *ListMembersResponse) Size() (n int) {
+func (m *ClusterStatusResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
+	if m.ID != 0 {
+		n += 1 + sovCluserRpc(uint64(m.ID))
+	}
+	l = len(m.Name)
+	if l > 0 {
+		n += 1 + l + sovCluserRpc(uint64(l))
+	}
 	if len(m.Members) > 0 {
 		for _, e := range m.Members {
 			l = e.Size()
 			n += 1 + l + sovCluserRpc(uint64(l))
 		}
+	}
+	if len(m.RemovedIDs) > 0 {
+		l = 0
+		for _, e := range m.RemovedIDs {
+			l += sovCluserRpc(uint64(e))
+		}
+		n += 1 + sovCluserRpc(uint64(l)) + l
 	}
 	return n
 }
@@ -1856,7 +1925,7 @@ func (m *RemoveMemberResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ListMembersRequest) Unmarshal(dAtA []byte) error {
+func (m *ClusterStatusRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1879,10 +1948,10 @@ func (m *ListMembersRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ListMembersRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: ClusterStatusRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ListMembersRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: ClusterStatusRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 255:
@@ -1926,7 +1995,7 @@ func (m *ListMembersRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ListMembersResponse) Unmarshal(dAtA []byte) error {
+func (m *ClusterStatusResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1949,13 +2018,64 @@ func (m *ListMembersResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ListMembersResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: ClusterStatusResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ListMembersResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: ClusterStatusResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ID", wireType)
+			}
+			m.ID = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCluserRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ID |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCluserRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthCluserRpc
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCluserRpc
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Members", wireType)
 			}
@@ -1989,6 +2109,82 @@ func (m *ListMembersResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 4:
+			if wireType == 0 {
+				var v uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowCluserRpc
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					v |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				m.RemovedIDs = append(m.RemovedIDs, v)
+			} else if wireType == 2 {
+				var packedLen int
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowCluserRpc
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					packedLen |= int(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				if packedLen < 0 {
+					return ErrInvalidLengthCluserRpc
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return ErrInvalidLengthCluserRpc
+				}
+				if postIndex > l {
+					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				var count int
+				for _, integer := range dAtA[iNdEx:postIndex] {
+					if integer < 128 {
+						count++
+					}
+				}
+				elementCount = count
+				if elementCount != 0 && len(m.RemovedIDs) == 0 {
+					m.RemovedIDs = make([]uint64, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowCluserRpc
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						v |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					m.RemovedIDs = append(m.RemovedIDs, v)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field RemovedIDs", wireType)
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipCluserRpc(dAtA[iNdEx:])

@@ -20,6 +20,14 @@ func NewMember(clusterName string, addrInfo AddrInfo, isLearner bool) *Member {
 	}
 }
 
+func (m *Member) Clone() *Member {
+	return &Member{
+		ID:        m.ID,
+		AddrInfo:  m.AddrInfo,
+		IsLearner: m.IsLearner,
+	}
+}
+
 func ComputeMemberID(clusterName string, addrInfo AddrInfo) uint64 {
 	var data = make([]byte, 0, len(clusterName)+len(addrInfo.Name)+len(addrInfo.Host))
 	data = append(data, []byte(clusterName)...)
