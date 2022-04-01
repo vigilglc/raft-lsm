@@ -4,7 +4,6 @@ package api;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 import "kv_rpc.proto";
-import "cluser_rpc.proto";
 
 option (gogoproto.marshaler_all) = true;
 option (gogoproto.unmarshaler_all) = true;
@@ -15,10 +14,6 @@ message InternalRequest {
   api.PutRequest put = 3;
   api.DelRequest del = 4;
   api.WriteRequest write = 5;
-
-  api.AddMemberRequest addMember = 6;
-  api.PromoteMemberRequest promoteMember = 7;
-  api.RemoveMemberRequest removeMember = 8;
 }
 
 // protoc -I . -I $env:GOPATH/src --gogofaster_out=plugins=grpc:. .\**.proto

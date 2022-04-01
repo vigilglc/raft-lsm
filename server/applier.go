@@ -8,8 +8,8 @@ import (
 )
 
 type ApplyResult struct {
-	resp proto.Message
-	err  error
+	Resp proto.Message
+	Err  error
 }
 
 type Applier interface {
@@ -29,16 +29,16 @@ func NewBackendApplier(lg *zap.Logger, be backend.Backend) Applier {
 }
 
 func (ba *backendApplier) Apply(index uint64, req *api.InternalRequest) (ret *ApplyResult) {
-	ret = &ApplyResult{resp: nil, err: nil}
+	ret = &ApplyResult{Resp: nil, Err: nil}
 	switch {
 	case req == nil:
-		ret.resp, ret.err = ba.Write(index, &api.WriteRequest{Batch: nil})
+		ret.Resp, ret.Err = ba.Write(index, &api.WriteRequest{Batch: nil})
 	case req.Put != nil:
-		ret.resp, ret.err = ba.Put(index, req.Put)
+		ret.Resp, ret.Err = ba.Put(index, req.Put)
 	case req.Del != nil:
-		ret.resp, ret.err = ba.Del(index, req.Del)
+		ret.Resp, ret.Err = ba.Del(index, req.Del)
 	case req.Write != nil:
-		ret.resp, ret.err = ba.Write(index, req.Write)
+		ret.Resp, ret.Err = ba.Write(index, req.Write)
 	}
 	return ret
 }
