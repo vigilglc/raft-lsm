@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 	"os"
 	"sync/atomic"
+	"time"
 )
 
 func (s *Server) applyAll(patch *raftn.ApplyPatch) {
@@ -110,7 +111,16 @@ func (s *Server) applyCommittedEntries(ents []raftpb.Entry) {
 		}
 	}
 	if shouldStop {
-		// TODO: add stop codes...
+		s.fw.Attach(func() {
+			select {
+			case <-s.stopped:
+			case <-time.After(10 * 100 * time.Millisecond):
+			}
+			select {
+			case s.errorC <- ErrRemoveSelf:
+			default:
+			}
+		})
 	}
 }
 

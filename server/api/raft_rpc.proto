@@ -14,7 +14,7 @@ service RaftService {
 
 
 message StatusRequest{
-  uint64 nodeID = 1;
+  bool linearizable = 255;
 }
 
 enum RaftState{
@@ -24,11 +24,17 @@ enum RaftState{
   PreCandidate = 3;
 }
 
+enum ProgressState{
+  Probe = 0;
+  Replicate = 1;
+  Snapshot = 2;
+}
+
 message RaftProgress{
   uint64 nodeID = 1;
   uint64 matchIndex = 2;
   uint64 nextIndex = 3;
-  RaftState raftState = 4;
+  ProgressState state = 4;
   bool recentActive = 5;
   bool isLearner = 6;
 }

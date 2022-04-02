@@ -8,7 +8,11 @@ import (
 	"github.com/vigilglc/raft-lsm/server/backend"
 	"github.com/vigilglc/raft-lsm/server/backend/kvpb"
 	"github.com/vigilglc/raft-lsm/server/cluster"
+	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/etcd/raft/v3/tracker"
+	"sync/atomic"
+	"time"
 )
 
 func (s *Server) doInternalRequest(ctx context.Context, req api.InternalRequest) (resp proto.Message, err error) {
@@ -290,6 +294,89 @@ func clusterMemberSlc2ApiMemberSlc(members []*cluster.Member) []*api.Member {
 		})
 	}
 	return ret
+}
+
+// endregion
+
+// region raft impls
+
+func (s *Server) Status(ctx context.Context, request *api.StatusRequest) (resp *api.StatusResponse, err error) {
+	resp = new(api.StatusResponse)
+	ctx, cancel := context.WithTimeout(ctx, s.Config.GetRequestTimeout())
+	defer cancel()
+	if request.Linearizable {
+		if err = s.linearizableReadNotify(ctx); err != nil {
+			return
+		}
+	}
+	status := s.raftNode.Status()
+	resp = raftStatus2ApiStatus(&status)
+	return
+}
+
+var raftStateApiStateMapping = map[raft.StateType]api.RaftState{
+	raft.StateFollower:     api.RaftState_Follower,
+	raft.StateCandidate:    api.RaftState_Candidate,
+	raft.StateLeader:       api.RaftState_Leader,
+	raft.StatePreCandidate: api.RaftState_PreCandidate,
+}
+
+var progressStateApiStateMapping = map[tracker.StateType]api.ProgressState{
+	tracker.StateProbe:     api.ProgressState_Probe,
+	tracker.StateReplicate: api.ProgressState_Replicate,
+	tracker.StateSnapshot:  api.ProgressState_Snapshot,
+}
+
+func raftStatus2ApiStatus(status *raft.Status) *api.StatusResponse {
+	resp := &api.StatusResponse{
+		NodeID:         status.ID,
+		RaftState:      raftStateApiStateMapping[status.RaftState],
+		Term:           status.HardState.Term,
+		Lead:           status.SoftState.Lead,
+		AppliedIndex:   status.Applied,
+		CommittedIndex: status.Commit,
+	}
+	if status.Progress != nil {
+		for nodeID, prg := range status.Progress {
+			resp.Progresses = append(resp.Progresses, &api.RaftProgress{
+				NodeID:       nodeID,
+				MatchIndex:   prg.Match,
+				NextIndex:    prg.Next,
+				State:        progressStateApiStateMapping[prg.State],
+				RecentActive: prg.RecentActive,
+				IsLearner:    prg.IsLearner,
+			})
+		}
+	}
+	return resp
+}
+
+func (s *Server) TransferLeader(ctx context.Context, request *api.TransferLeaderRequest) (resp *api.TransferLeaderResponse, err error) {
+	resp = new(api.TransferLeaderResponse)
+	transferee := request.TransfereeID
+	if transferee == raft.None || transferee == s.cluster.GetLocalMemberID() {
+		return resp, ErrInvalidArgs
+	}
+	if s.cluster.IsIDRemoved(transferee) {
+		return resp, ErrInvalidArgs
+	}
+	ctx, cancel := context.WithTimeout(ctx, s.Config.GetRequestTimeout())
+	defer cancel()
+
+	s.raftNode.TransferLeadership(ctx, atomic.LoadUint64(&s.lead), transferee)
+	var interval = s.Config.GetOneTickMillis()
+	leaderNotifier := s.leaderChangeNtf.Wait()
+	for atomic.LoadUint64(&s.lead) != transferee {
+		select {
+		case <-time.After(interval):
+		case <-leaderNotifier:
+			leaderNotifier = s.leaderChangeNtf.Wait()
+		case <-ctx.Done():
+			err = ctx.Err()
+			break
+		}
+	}
+	return resp, err
 }
 
 // endregion
