@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package api;
+package rpcpb;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 import "kv_rpc.proto";
@@ -11,9 +11,9 @@ option (gogoproto.unmarshaler_all) = true;
 message InternalRequest {
   uint64 ID = 1;
 
-  api.PutRequest put = 3;
-  api.DelRequest del = 4;
-  api.WriteRequest write = 5;
+  rpcpb.PutRequest put = 3;
+  rpcpb.DelRequest del = 4;
+  rpcpb.WriteRequest write = 5;
 }
 
 // protoc -I . -I $env:GOPATH/src --gogofaster_out=plugins=grpc:. .\**.proto

@@ -2,7 +2,7 @@ package server
 
 import (
 	"github.com/gogo/protobuf/proto"
-	"github.com/vigilglc/raft-lsm/server/api"
+	api "github.com/vigilglc/raft-lsm/server/api/rpcpb"
 	"github.com/vigilglc/raft-lsm/server/backend"
 	"go.uber.org/zap"
 )

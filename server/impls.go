@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/gogo/protobuf/proto"
 	json "github.com/json-iterator/go"
-	"github.com/vigilglc/raft-lsm/server/api"
+	api "github.com/vigilglc/raft-lsm/server/api/rpcpb"
 	"github.com/vigilglc/raft-lsm/server/backend"
 	"github.com/vigilglc/raft-lsm/server/backend/kvpb"
 	"github.com/vigilglc/raft-lsm/server/cluster"

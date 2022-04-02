@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/vigilglc/raft-lsm/server/api"
+	api "github.com/vigilglc/raft-lsm/server/api/rpcpb"
 	"github.com/vigilglc/raft-lsm/server/cluster"
 	"github.com/vigilglc/raft-lsm/server/raftn"
 	"github.com/vigilglc/raft-lsm/server/utils/mathutil"
