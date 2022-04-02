@@ -354,7 +354,7 @@ func raftStatus2ApiStatus(status *raft.Status) *api.StatusResponse {
 func (s *Server) TransferLeader(ctx context.Context, request *api.TransferLeaderRequest) (resp *api.TransferLeaderResponse, err error) {
 	resp = new(api.TransferLeaderResponse)
 	transferee := request.TransfereeID
-	if transferee == raft.None || transferee == s.cluster.GetLocalMemberID() {
+	if transferee == raft.None {
 		return resp, ErrInvalidArgs
 	}
 	if s.cluster.IsIDRemoved(transferee) {
