@@ -1,6 +1,8 @@
 package config
 
 import (
+	_ "embed"
+	"github.com/BurntSushi/toml"
 	"github.com/vigilglc/raft-lsm/server/backend"
 	"github.com/vigilglc/raft-lsm/server/cluster"
 	"go.uber.org/zap"
@@ -14,26 +16,26 @@ import (
 
 type ServerConfig struct {
 	// cluster address infos
-	ClusterName   string             `json:"clusterName"`
-	NewCluster    bool               `json:"newCluster,omitempty"` // whether the cluster is upon creating
-	LocalAddrInfo cluster.AddrInfo   `json:"localAddrInfo"`
-	PeerAddrInfos []cluster.AddrInfo `json:"peerAddrInfos,omitempty"`
+	ClusterName   string             `json:"clusterName" toml:"clusterName"`
+	NewCluster    bool               `json:"newCluster,omitempty" toml:"newCluster"` // whether the cluster is upon creating
+	LocalAddrInfo cluster.AddrInfo   `json:"localAddrInfo" toml:"localAddrInfo"`
+	PeerAddrInfos []cluster.AddrInfo `json:"peerAddrInfos,omitempty" toml:"peerAddrInfos"`
 	// raft and storage
-	DataDir           string `json:"dataDir"`   // root dir for storing any data of server.
-	OneTickMs         uint16 `json:"oneTickMs"` // how many microseconds one tick lasts...
-	ElectionTicks     int    `json:"electionTicks"`
-	HeartbeatTicks    int    `json:"heartbeatTicks"`
-	BackendSync       bool   `json:"backendSync,omitempty"`       // whether Backend does fsync...
-	BackendForceClose bool   `json:"backendForceClose,omitempty"` // if true, Backend.Close will interrupt any in-flight writes...
-	SnapshotThreshold uint64 `json:"SnapshotThreshold"`
+	DataDir           string `json:"dataDir" toml:"dataDir"`     // root dir for storing any data of server.
+	OneTickMs         uint16 `json:"oneTickMs" toml:"oneTickMs"` // how many microseconds one tick lasts...
+	ElectionTicks     int    `json:"electionTicks" toml:"electionTicks"`
+	HeartbeatTicks    int    `json:"heartbeatTicks" toml:"heartbeatTicks"`
+	BackendSync       bool   `json:"backendSync,omitempty" toml:"backendSync"`             // whether Backend does fsync...
+	BackendForceClose bool   `json:"backendForceClose,omitempty" toml:"backendForceClose"` // if true, Backend.Close will interrupt any in-flight writes...
+	SnapshotThreshold uint64 `json:"SnapshotThreshold" toml:"snapshotThreshold"`
 	// logger
 	lgMu           sync.Mutex
 	lg             *zap.Logger
-	Development    bool     `json:"development,omitempty"`
-	LogLevel       string   `json:"logLevel,omitempty"`
-	LogOutputPaths []string `json:"logOutputPaths,omitempty"`
+	Development    bool     `json:"development,omitempty" toml:"development"`
+	LogLevel       string   `json:"logLevel,omitempty" toml:"logLevel"`
+	LogOutputPaths []string `json:"logOutputPaths,omitempty" toml:"logOutputPaths"`
 	// req and resp
-	ReadIndexBatchTimeoutMs int64 `json:"ReadIndexBatchTimeoutMs"`
+	ReadIndexBatchTimeoutMs int64 `json:"readIndexBatchTimeoutMs" toml:"readIndexBatchTimeoutMs"`
 }
 
 var strMapZapLevel = map[string]zapcore.Level{
@@ -136,7 +138,19 @@ func (cfg *ServerConfig) GetRequestTimeout() time.Duration {
 	return 5*time.Second + 2*time.Duration(cfg.ElectionTicks*int(cfg.OneTickMs))*time.Millisecond
 }
 
-func (c *ServerConfig) GetPeerDialTimeout() time.Duration {
+func (cfg *ServerConfig) GetPeerDialTimeout() time.Duration {
 	// 1s for queue wait and election timeout
-	return time.Second + time.Duration(c.ElectionTicks*int(c.OneTickMs))*time.Millisecond
+	return time.Second + time.Duration(cfg.ElectionTicks*int(cfg.OneTickMs))*time.Millisecond
+}
+
+//go:embed default.toml
+var configToml string
+
+func DefaultServerConfig() *ServerConfig {
+	var ret = new(ServerConfig)
+	_, err := toml.Decode(configToml, &ret)
+	if err != nil {
+		panic("failed to decode default config in .toml")
+	}
+	return ret
 }

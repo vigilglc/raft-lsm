@@ -1,0 +1,16 @@
+# cluster
+clusterName = "raft-lsm"
+newCluster = true
+# raft and storage
+oneTickMs = 100
+electionTicks = 10
+heartbeatTicks = 1
+backendSync = false
+backendForceClose = false
+SnapshotThreshold = 100000
+# logger
+development = true
+logLevel = "debug"
+logOutputPaths = ["stderr"]
+# req and resp
+readIndexBatchTimeoutMs = 500
