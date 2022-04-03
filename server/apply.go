@@ -62,7 +62,9 @@ func (s *Server) applySnapshot(snap raftpb.Snapshot) {
 	if err := f.Close(); err != nil {
 		s.lg.Panic("failed to close DB file", zap.String("DB-filename", dbFn), zap.Error(err))
 	}
-	s.cluster.RecoverMembers()
+	if err := s.cluster.RecoverMembers(); err != nil {
+		s.lg.Panic("failed to recover members", zap.Error(err))
+	}
 	s.lg.Info("recovered cluster members")
 	s.transport.RemoveAllPeers()
 	for _, member := range s.cluster.GetMembers() {

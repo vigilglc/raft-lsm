@@ -52,6 +52,11 @@ func (cl *Cluster) GetClusterName() string {
 	return cl.name
 }
 
+func (cl *Cluster) SetClusterName(cname string) {
+	defer syncutil.SchedLockers(&cl.rwmu)()
+	cl.name = cname
+}
+
 func (cl *Cluster) SetClusterID(ID uint64) {
 	defer syncutil.SchedLockers(&cl.rwmu)()
 	cl.id = ID

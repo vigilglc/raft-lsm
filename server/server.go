@@ -118,6 +118,19 @@ func NewServer(cfg *config.ServerConfig) *Server {
 		LeaderStats: srv.leaderStats,
 		ErrorC:      srv.errorC,
 	}
+	if err := srv.transport.Start(); err != nil {
+		lg.Panic("failed to start transport", zap.Error(err))
+	}
+	for _, rmt := range btSrv.BootstrappedCluster.Remotes {
+		if rmt.ID != uintID && rmt.ID != raft.None {
+			srv.transport.AddRemote(types.ID(rmt.ID), []string{rmt.RaftAddress()})
+		}
+	}
+	for _, mem := range cl.GetMembers() {
+		if mem.ID != uintID && mem.ID != raft.None {
+			srv.transport.AddPeer(types.ID(mem.ID), []string{mem.RaftAddress()})
+		}
+	}
 	srv.raftNode = raftn.NewRaftNode(lg,
 		cfg.GetOneTickMillis(),
 		btSrv.BootstrappedRaft.StartRaft(), srv.transport,
@@ -149,9 +162,6 @@ func (s *Server) run() {
 		}
 		s.transport.Stop()
 	}()
-	if err := s.transport.Start(); err != nil {
-		s.lg.Panic("failed to start transport", zap.Error(err))
-	}
 	s.raftNode.Start(raftn.DataBridge{
 		SetLead: func(lead uint64) {
 			oldLead := atomic.LoadUint64(&s.lead)
