@@ -17,6 +17,7 @@ type Client interface {
 	rpcpb.KVServiceClient
 	rpcpb.ClusterServiceClient
 	rpcpb.RaftServiceClient
+	Host() string
 	Closed() bool
 	Reset() error
 	Close() error
@@ -126,6 +127,10 @@ func NewClient(ctx context.Context, host string) (client Client, err error) {
 	client = &rpcClient{ctx: ctx, host: host, closed: true}
 	err = client.Reset()
 	return client, err
+}
+func (rc *rpcClient) Host() string {
+	defer syncutil.SchedLockers(rc.rwmu.RLocker())()
+	return rc.host
 }
 
 func (rc *rpcClient) Reset() error {
