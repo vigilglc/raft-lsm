@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	grb "github.com/desertbit/grumble"
 	"github.com/vigilglc/raft-lsm/server/api/rpcpb"
 	"github.com/vigilglc/raft-lsm/server/backend/kvpb"
@@ -25,9 +24,12 @@ const (
 )
 
 type RangeExecutor interface {
+	Begin(from, to string, asc, linearizable bool) error
 	Next(N uint64) (kvs []*kvpb.KV, hasMore bool, err error)
 	Close() error
 }
+
+type InitFunc func(hosts []string) error
 
 type ExeGetFunc func(key string, linearizable bool) (val string, err error)
 type ExePutFunc func(kvs []*kvpb.KV) (err error)
@@ -37,9 +39,9 @@ type ExeRangeFunc func(from, to string, asc, linearizable bool) (exe RangeExecut
 type ExeAddMemberFunc func(mem *rpcpb.Member) (members []*rpcpb.Member, err error)
 type ExePromoteMemberFunc func(ID uint64) (members []*rpcpb.Member, err error)
 type ExeRemoveMemberFunc func(ID uint64) (members []*rpcpb.Member, err error)
-type ExeClusterStatusFunc func(ID uint64) (status *rpcpb.ClusterStatusResponse, err error)
+type ExeClusterStatusFunc func(ID uint64, linearizable bool) (status *rpcpb.ClusterStatusResponse, err error)
 
-type ExeRaftStatusFunc func(ID uint64) (status *rpcpb.StatusResponse, err error)
+type ExeRaftStatusFunc func(ID uint64, linearizable bool) (status *rpcpb.StatusResponse, err error)
 type ExeTransferLeaderFunc func(fromID, toID uint64) (err error)
 
 var (
@@ -47,6 +49,7 @@ var (
 )
 
 var (
+	appInit               InitFunc
 	exeGetFunc            ExeGetFunc
 	exePutFunc            ExePutFunc
 	exeDelFunc            ExeDelFunc
@@ -58,6 +61,10 @@ var (
 	exeRaftStatusFunc     ExeRaftStatusFunc
 	exeTransferLeaderFunc ExeTransferLeaderFunc
 )
+
+func SetInitFunc(fun InitFunc) {
+	appInit = fun
+}
 
 func SetExeGetFunc(fun ExeGetFunc) {
 	exeGetFunc = fun
@@ -368,13 +375,15 @@ var (
 		Name:    "CSTATUS",
 		Aliases: []string{"cstatus"},
 		Help:    "get cluster status",
-		Usage:   "CSTATUS [ID]",
+		Usage:   "CSTATUS [ID] [linearizable]",
 		Args: func(a *grb.Args) {
 			a.Uint64(argID, "member's node ID", grb.Default(raft.None))
+			a.Bool(argLinearizable, "whether to do linearizable reads", grb.Default(false))
 		},
 		Run: wrapCmdRunFunc(func(c *grb.Context) error {
 			nodeID := c.Args.Uint64(argID)
-			status, err := exeClusterStatusFUnc(nodeID)
+			linearizable := c.Args.Bool(argLinearizable)
+			status, err := exeClusterStatusFUnc(nodeID, linearizable)
 			if err != nil {
 				c.App.PrintError(err)
 				return nil
@@ -393,13 +402,15 @@ var (
 		Name:    "RSTATUS",
 		Aliases: []string{"rstatus"},
 		Help:    "get raft status",
-		Usage:   "RSTATUS [ID]",
+		Usage:   "RSTATUS [ID] [linearizable]",
 		Args: func(a *grb.Args) {
 			a.Uint64(argID, "member's node ID", grb.Default(raft.None))
+			a.Bool(argLinearizable, "whether to do linearizable reads", grb.Default(false))
 		},
 		Run: wrapCmdRunFunc(func(c *grb.Context) error {
 			nodeID := c.Args.Uint64(argID)
-			status, err := exeRaftStatusFunc(nodeID)
+			linearizable := c.Args.Bool(argLinearizable)
+			status, err := exeRaftStatusFunc(nodeID, linearizable)
 			if err != nil {
 				c.App.PrintError(err)
 				return nil
@@ -455,8 +466,7 @@ func init() {
 	app.OnInit(func(a *grb.App, flags grb.FlagMap) error {
 		host := flags.String(flagHost)
 		urls := strings.Split(host, ";")
-		fmt.Println(urls) // TODO: initiate clients...
-		return nil
+		return appInit(urls)
 	})
 }
 

@@ -11,9 +11,11 @@ import (
 )
 
 type Balancer interface {
+	Context() context.Context
+	Close() error
+
 	AddClient(client Client)
 	AddClients(clients ...Client)
-	Close() error
 
 	Resolve() error
 	Pick() (client Client, release func())
@@ -43,6 +45,11 @@ func NewBalancer(ctx context.Context) Balancer {
 	ret := new(balancer)
 	ret.ctx, ret.cancel = context.WithCancel(ctx)
 	return ret
+}
+
+func (blc *balancer) Context() context.Context {
+	defer syncutil.SchedLockers(blc.rwmu.RLocker())()
+	return blc.ctx
 }
 
 func (blc *balancer) AddClient(client Client) {
@@ -100,19 +107,15 @@ func (blc *balancer) Resolve() error {
 		return err
 	}
 	defer syncutil.SchedLockers(&blc.rwmu)()
-	var client Client
 	blc.members = resp.Members
 	for _, mem := range resp.Members {
-		host := getMemberHost(mem)
-		client, err = NewClient(blc.ctx, host)
-		if err == nil {
-			blc.doAddClient(client)
-		}
+		host := GetMemberHost(mem)
+		blc.doAddClient(NewClient(blc.ctx, host))
 	}
 	return err
 }
 
-func getMemberHost(mem *rpcpb.Member) string {
+func GetMemberHost(mem *rpcpb.Member) string {
 	addrInfo := cluster.AddrInfo{Host: mem.Host, ServicePort: uint16(mem.ServicePort), RaftPort: uint16(mem.RaftPort)}
 	return addrInfo.ServiceAddress()
 }
@@ -135,7 +138,7 @@ func (blc *balancer) PickByID(ID uint64) (client Client, release func()) {
 	defer syncutil.SchedLockers(blc.rwmu.RLocker())()
 	for _, mem := range blc.members {
 		if mem.ID == ID {
-			locked := blc.hostClientM[getMemberHost(mem)]
+			locked := blc.hostClientM[GetMemberHost(mem)]
 			locked.Lock()
 			if locked.Client.Closed() {
 				_ = locked.Client.Reset()
@@ -152,7 +155,7 @@ func (blc *balancer) PickByName(name string) (client Client, release func()) {
 	defer syncutil.SchedLockers(blc.rwmu.RLocker())()
 	for _, mem := range blc.members {
 		if mem.Name == name {
-			locked := blc.hostClientM[getMemberHost(mem)]
+			locked := blc.hostClientM[GetMemberHost(mem)]
 			locked.Lock()
 			if locked.Client.Closed() {
 				_ = locked.Client.Reset()
@@ -189,12 +192,12 @@ func (blc *balancer) RemoveByID(ID uint64) {
 		if mem.ID == ID {
 			member = mem
 			blc.members = append(blc.members[:i], blc.members[i+1:]...)
-			locked = blc.hostClientM[getMemberHost(mem)]
+			locked = blc.hostClientM[GetMemberHost(mem)]
 			break
 		}
 	}
 	defer syncutil.SchedLockers(locked)()
-	host := getMemberHost(member)
+	host := GetMemberHost(member)
 	delete(blc.hostClientM, host)
 	for i, lc := range blc.clients {
 		if lc.Host() == host {
@@ -208,9 +211,9 @@ func (blc *balancer) RemoveByHost(host string) {
 	defer syncutil.SchedLockers(&blc.rwmu)()
 	var locked *lockerClient
 	for i, mem := range blc.members {
-		if getMemberHost(mem) == host {
+		if GetMemberHost(mem) == host {
 			blc.members = append(blc.members[:i], blc.members[i+1:]...)
-			locked = blc.hostClientM[getMemberHost(mem)]
+			locked = blc.hostClientM[GetMemberHost(mem)]
 			break
 		}
 	}

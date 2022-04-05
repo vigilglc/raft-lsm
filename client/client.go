@@ -123,10 +123,8 @@ func (rc *rpcClient) TransferLeader(ctx context.Context, in *rpcpb.TransferLeade
 	return rc.raftCli.TransferLeader(ctx, in, opts...)
 }
 
-func NewClient(ctx context.Context, host string) (client Client, err error) {
-	client = &rpcClient{ctx: ctx, host: host, closed: true}
-	err = client.Reset()
-	return client, err
+func NewClient(ctx context.Context, host string) (client Client) {
+	return &rpcClient{ctx: ctx, host: host, closed: true}
 }
 func (rc *rpcClient) Host() string {
 	defer syncutil.SchedLockers(rc.rwmu.RLocker())()
