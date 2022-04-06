@@ -2,11 +2,14 @@ package config
 
 import (
 	_ "embed"
+	"fmt"
 	"github.com/BurntSushi/toml"
+	json "github.com/json-iterator/go"
 	"github.com/vigilglc/raft-lsm/server/backend"
 	"github.com/vigilglc/raft-lsm/server/cluster"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -153,4 +156,24 @@ func DefaultServerConfig() *ServerConfig {
 		panic("failed to decode default config in .toml")
 	}
 	return ret
+}
+
+func ReadServerConfig(fn string) (ret *ServerConfig, err error) {
+	ret = DefaultServerConfig()
+	bytes, err := ioutil.ReadFile(fn)
+	if err != nil {
+		return ret, err
+	}
+	switch filepath.Ext(fn) {
+	case "json":
+		err = json.Unmarshal(bytes, ret)
+	case "toml":
+		_, err := toml.Decode(string(bytes), ret)
+		if err != nil {
+			return ret, err
+		}
+	default:
+		return ret, fmt.Errorf("unsupported extension: %v", filepath.Ext(fn))
+	}
+	return
 }
