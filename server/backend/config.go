@@ -8,7 +8,6 @@ import (
 	"github.com/vigilglc/raft-lsm/server/utils/fileutil"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 )
 
@@ -38,11 +37,11 @@ func (c *Config) CleanDir() error {
 	}
 	return fileutil.RemovedMatchedUnder(c.Dir, func(dirEnt os.DirEntry) bool {
 		if !dirEnt.IsDir() {
-			if dirEnt.Name() == backendMataFilename {
+			if dirEnt.Name() == backendMataFilename || dirEnt.Name() == backendMataBackupName {
 				return false
 			}
 		} else {
-			if path.Base(mainDir) == dirEnt.Name() {
+			if filepath.Base(mainDir) == dirEnt.Name() {
 				return false
 			}
 		}
@@ -98,7 +97,15 @@ func writeConfigMeta(dir, fn string, meta Meta) (err error) {
 
 func readConfigMeta(dir, fn string) (meta Meta, err error) {
 	f, err := os.OpenFile(filepath.Join(dir, fn), os.O_RDONLY, 0444)
-	defer func(f *os.File) { err = f.Close() }(f)
+	defer func(f *os.File) {
+		var er error
+		if f != nil {
+			er = f.Close()
+		}
+		if err == nil {
+			err = er
+		}
+	}(f)
 	if err != nil {
 		return
 	}

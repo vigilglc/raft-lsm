@@ -150,10 +150,12 @@ func (s *Server) Range(agent api.KVService_RangeServer) (err error) {
 }
 
 func readKVsAtMostN(kvC <-chan *kvpb.KV, errC <-chan error, n uint64) (res []*kvpb.KV, err error) {
-	for len(res) < int(n) && err == nil {
+	var done bool
+	for !done && len(res) < int(n) && err == nil {
 		select {
 		case kv, ok := <-kvC:
 			if !ok {
+				done = true
 				break
 			}
 			res = append(res, kv)

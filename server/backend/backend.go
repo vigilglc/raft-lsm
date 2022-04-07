@@ -65,6 +65,7 @@ const (
 )
 
 var ErrInvalidKey = errors.New("backend: invalid key")
+var ErrOutdatedWrite = errors.New("backend: out-of-date write")
 
 func OpenBackend(lg *zap.Logger, cfg Config) (ret Backend, err error) {
 	be := &backend{lg: lg, cfg: cfg, stopped: make(chan struct{})}
@@ -187,6 +188,7 @@ func (be *backend) Write(batch *Batch) error {
 		defer be.aiRwmu.RUnlock()
 		return nil
 	}
+	be.aiRwmu.RUnlock()
 	internalBatch := new(leveldb.Batch)
 	internalBatch.Put([]byte(appliedIndexKey), uint64ToBytes(batch.appliedIndex))
 	for _, ent := range batch.ents {
@@ -208,6 +210,9 @@ func (be *backend) Write(batch *Batch) error {
 		internalBatch.Put([]byte(confStateKey), bts)
 	}
 	defer syncutil.SchedLockers(&be.aiRwmu)()
+	if be.appliedIndex >= batch.appliedIndex {
+		return ErrOutdatedWrite
+	}
 	err := be.db.Write(internalBatch, &opt.WriteOptions{
 		Sync:         be.cfg.GetSync(),
 		NoWriteMerge: true,
@@ -284,10 +289,9 @@ func (be *backend) SnapshotStream() (ai uint64, rc io.ReadCloser, size int64, er
 	FIN:
 		close(closeC)
 		if err == nil {
-			err = enc.Close()
-		}
-		if err != nil {
-			be.lg.Error("failed to encode kv", zap.Error(err))
+			if err = enc.Close(); err != nil {
+				be.lg.Error("failed to close KV encoder", zap.Error(err))
+			}
 		}
 		if err = pw.CloseWithError(err); err != nil {
 			be.lg.Error("failed to close pipe writer", zap.Error(err))

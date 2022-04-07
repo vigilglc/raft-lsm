@@ -83,11 +83,13 @@ func (cl *Cluster) membersFromBackend() (members map[uint64]*Member, err error) 
 	kvC, errC, closeC := cl.be.Range(memberKeyRangeFrom, memberKeyRangeTo, true)
 	defer close(closeC)
 	members = map[uint64]*Member{}
-	for err == nil {
+	var done bool
+	for err == nil && !done {
 		select {
 		case err = <-errC:
 		case kv, ok := <-kvC:
 			if !ok {
+				done = true
 				break
 			}
 			if len(kv.Val) == 0 {
@@ -104,12 +106,14 @@ func (cl *Cluster) membersFromBackend() (members map[uint64]*Member, err error) 
 func (cl *Cluster) removedIDsFromBackend() (removedIDs map[uint64]struct{}, err error) {
 	kvC, errC, closeC := cl.be.Range(removedMemberIDKeyRangeFrom, removedMemberIDKeyRangeTo, true)
 	defer close(closeC)
+	var done bool
 	removedIDs = map[uint64]struct{}{}
-	for err == nil {
+	for err == nil && !done {
 		select {
 		case err = <-errC:
 		case kv, ok := <-kvC:
 			if !ok {
+				done = true
 				break
 			}
 			if len(kv.Val) == 0 {
