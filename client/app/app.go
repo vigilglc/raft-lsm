@@ -31,6 +31,7 @@ type RangeExecutor interface {
 }
 
 type InitFunc func(hosts []string) error
+type CloseFunc func() error
 
 type ExeGetFunc func(key string, linearizable bool) (val string, err error)
 type ExePutFunc func(kvs []*kvpb.KV) (err error)
@@ -45,12 +46,16 @@ type ExeClusterStatusFunc func(ID uint64, linearizable bool) (status *rpcpb.Clus
 type ExeRaftStatusFunc func(ID uint64, linearizable bool) (status *rpcpb.StatusResponse, err error)
 type ExeTransferLeaderFunc func(fromID, toID uint64) (err error)
 
+type ExeHostsFunc func() (hosts []string, err error)
+type ExeResolveFunc func() error
+
 var (
 	rangeExe RangeExecutor = nil
 )
 
 var (
-	appInit               InitFunc
+	appInit               InitFunc  = func(hosts []string) error { return nil }
+	closer                CloseFunc = func() error { return nil }
 	exeGetFunc            ExeGetFunc
 	exePutFunc            ExePutFunc
 	exeDelFunc            ExeDelFunc
@@ -61,10 +66,15 @@ var (
 	exeClusterStatusFUnc  ExeClusterStatusFunc
 	exeRaftStatusFunc     ExeRaftStatusFunc
 	exeTransferLeaderFunc ExeTransferLeaderFunc
+	exeHostsFunc          ExeHostsFunc
+	exeResolveFunc        ExeResolveFunc
 )
 
 func SetInitFunc(fun InitFunc) {
 	appInit = fun
+}
+func SetCloseFunc(fun CloseFunc) {
+	closer = fun
 }
 
 func SetExeGetFunc(fun ExeGetFunc) {
@@ -98,6 +108,13 @@ func SetExeRaftStatusFunc(fun ExeRaftStatusFunc) {
 }
 func SetExeTransferLeaderFunc(fun ExeTransferLeaderFunc) {
 	exeTransferLeaderFunc = fun
+}
+
+func SetExeHostsFunc(fun ExeHostsFunc) {
+	exeHostsFunc = fun
+}
+func SetExeResolveFunc(fun ExeResolveFunc) {
+	exeResolveFunc = fun
 }
 
 const (
@@ -451,6 +468,47 @@ var (
 	}
 
 	// endregion
+
+	// region client cmd
+
+	cmdHosts = &grb.Command{
+		Name:    "HOSTS",
+		Aliases: []string{"hosts"},
+		Help:    "get all client addresses",
+		Usage:   "HOSTS",
+		Args: func(a *grb.Args) {
+		},
+		Run: func(c *grb.Context) error {
+			hosts, err := exeHostsFunc()
+			if err != nil {
+				c.App.PrintError(err)
+				return nil
+			}
+			_, _ = c.App.Println("success")
+			_, _ = c.App.Println(strings.Join(hosts, ";"))
+			return nil
+		},
+	}
+
+	cmdResolve = &grb.Command{
+		Name:    "RESOLVE",
+		Aliases: []string{"resolve"},
+		Help:    "resolve all client addresses via remote nodes",
+		Usage:   "RESOLVE",
+		Args: func(a *grb.Args) {
+		},
+		Run: func(c *grb.Context) error {
+			err := exeResolveFunc()
+			if err != nil {
+				c.App.PrintError(err)
+				return nil
+			}
+			_, _ = c.App.Println("success")
+			return nil
+		},
+	}
+
+	// endregion
 )
 
 func init() {
@@ -476,6 +534,12 @@ func init() {
 				fallthrough
 			case cmdTransferLeader.Name:
 				fallthrough
+
+			case cmdHosts.Name:
+				fallthrough
+			case cmdResolve.Name:
+				fallthrough
+
 			case cmdRangeBegin.Name:
 				if rangeExe != nil {
 					c.App.PrintError(ErrClientStateInvalid)
@@ -500,6 +564,7 @@ func init() {
 		cmdGet, cmdPut, cmdDel, cmdRangeBegin, cmdRangeNext, cmdRangeClose,
 		cmdAddMember, cmdPromoteMember, cmdRemoveMember, cmdClusterStatus,
 		cmdRaftStatus, cmdTransferLeader,
+		cmdHosts, cmdResolve,
 	} {
 		cmd.Run = interceptCmdRun(cmd.Run)
 		app.AddCommand(cmd)
@@ -509,6 +574,9 @@ func init() {
 		host := flags.String(flagHost)
 		urls := strings.Split(host, ";")
 		return appInit(urls)
+	})
+	app.OnClose(func() error {
+		return closer()
 	})
 }
 

@@ -10,20 +10,17 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 )
 
 func initApp(ctx context.Context,
 	balancerGen func(ctx context.Context) client.Balancer,
 	clientGen func(ctx context.Context, host string) client.Client) {
+	var appToStop = make(chan struct{})
+	var appStopped = make(chan struct{})
+
 	balancer := balancerGen(ctx)
 	ctx = balancer.Context()
-	app.SetInitFunc(func(hosts []string) error {
-		for _, host := range hosts {
-			host = strings.TrimSpace(host)
-			balancer.AddClient(clientGen(ctx, host))
-		}
-		return nil
-	})
 
 	app.SetExeGetFunc(func(key string, linearizable bool) (val string, err error) {
 		cli, release := balancer.Pick()
@@ -149,6 +146,54 @@ func initApp(ctx context.Context,
 		}
 		_, err = cli.TransferLeader(ctx, &rpcpb.TransferLeaderRequest{TransfereeID: toID})
 		return
+	})
+
+	app.SetExeHostsFunc(func() (hosts []string, err error) {
+		return balancer.AllClientHosts(), nil
+	})
+	var rsvInterval = 60 * time.Second
+	var rsvRequest = make(chan struct{}, 1)
+	var rsvResponse = make(chan error, 1)
+
+	go func() {
+		var timer = time.NewTimer(rsvInterval)
+		for true {
+			select {
+			case <-appToStop:
+				close(appStopped)
+				return
+			case <-timer.C:
+				_ = balancer.Resolve()
+			case <-rsvRequest:
+				rsvResponse <- balancer.Resolve()
+			}
+			timer.Reset(rsvInterval)
+		}
+	}()
+	requestResolve := func() error {
+		rsvRequest <- struct{}{}
+		return <-rsvResponse
+	}
+	app.SetExeResolveFunc(requestResolve)
+
+	app.SetInitFunc(func(hosts []string) error {
+		for _, host := range hosts {
+			host = strings.TrimSpace(host)
+			if len(host) == 0 {
+				continue
+			}
+			balancer.AddClient(clientGen(ctx, host))
+		}
+		if len(balancer.AllClientHosts()) == 0 {
+			return fmt.Errorf("failed to start client, since no server hosts provided")
+		}
+		_ = requestResolve()
+		return nil
+	})
+	app.SetCloseFunc(func() error {
+		close(appToStop)
+		<-appStopped
+		return balancer.Close()
 	})
 }
 

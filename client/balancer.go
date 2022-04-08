@@ -16,6 +16,7 @@ type Balancer interface {
 
 	AddClient(client Client)
 	AddClients(clients ...Client)
+	AllClientHosts() []string
 
 	Resolve() error
 	Pick() (client Client, release func())
@@ -74,6 +75,15 @@ func (blc *balancer) AddClients(clients ...Client) {
 	}
 }
 
+func (blc *balancer) AllClientHosts() []string {
+	defer syncutil.SchedLockers(blc.rwmu.RLocker())()
+	var hosts []string
+	for _, cli := range blc.clients {
+		hosts = append(hosts, cli.Host())
+	}
+	return hosts
+}
+
 func (blc *balancer) Close() error {
 	defer syncutil.SchedLockers(&blc.rwmu)()
 	blc.cancel()
@@ -88,7 +98,7 @@ func (blc *balancer) Close() error {
 
 const (
 	resolveRetryTimes = 5
-	resolveTimeout    = 1000 * time.Millisecond
+	resolveTimeout    = 10 * time.Second
 )
 
 func (blc *balancer) Resolve() error {
