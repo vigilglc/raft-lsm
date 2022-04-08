@@ -6,6 +6,7 @@ import (
 	"github.com/vigilglc/raft-lsm/server/backend/kvpb"
 	"go.etcd.io/etcd/raft/v3"
 	"math"
+	"strconv"
 	"strings"
 )
 
@@ -99,51 +100,9 @@ func SetExeTransferLeaderFunc(fun ExeTransferLeaderFunc) {
 	exeTransferLeaderFunc = fun
 }
 
-func wrapCmdRunFunc(inner func(c *grb.Context) error) func(c *grb.Context) error {
-	return func(c *grb.Context) error {
-		switch c.Command.Name {
-		case cmdGet.Name:
-			fallthrough
-		case cmdPut.Name:
-			fallthrough
-		case cmdDel.Name:
-			fallthrough
-
-		case cmdAddMember.Name:
-			fallthrough
-		case cmdPromoteMember.Name:
-			fallthrough
-		case cmdRemoveMember.Name:
-			fallthrough
-		case cmdClusterStatus.Name:
-			fallthrough
-		case cmdRaftStatus.Name:
-			fallthrough
-		case cmdTransferLeader.Name:
-			fallthrough
-		case cmdRangeBegin.Name:
-			if rangeExe != nil {
-				c.App.PrintError(ErrClientStateInvalid)
-				return nil
-			}
-		case cmdRangeNext.Name:
-			fallthrough
-		case cmdRangeClose.Name:
-			if rangeExe == nil {
-				c.App.PrintError(ErrClientStateInvalid)
-				return nil
-			}
-		default:
-			c.App.PrintError(ErrUnknownCommand)
-			return nil
-		}
-		return inner(c)
-	}
-}
-
 const (
-	normalPrompt   = ">>>"
-	exeRangePrompt = "R>>"
+	normalPrompt   = ">>> "
+	exeRangePrompt = "R>> "
 )
 
 var (
@@ -168,7 +127,7 @@ var (
 			a.String(argKey, "KV's key")
 			a.Bool(argLinearizable, "whether to do linearizable reads", grb.Default(true))
 		},
-		Run: wrapCmdRunFunc(func(c *grb.Context) error {
+		Run: func(c *grb.Context) error {
 			key := c.Args.String(argKey)
 			linearizable := c.Args.Bool(argLinearizable)
 			val, err := exeGetFunc(key, linearizable)
@@ -178,7 +137,7 @@ var (
 			}
 			_, _ = c.App.Println(val)
 			return nil
-		}),
+		},
 	}
 	cmdPut = &grb.Command{
 		Name:    "PUT",
@@ -189,7 +148,7 @@ var (
 			a.StringList(argKV, "KV's keys and vals, e.g. \"key0 val0 key1 val1\"", grb.Min(2),
 				grb.Max(math.MaxUint32))
 		},
-		Run: wrapCmdRunFunc(func(c *grb.Context) error {
+		Run: func(c *grb.Context) error {
 			words := c.Args.StringList(argKV)
 			if len(words) == 0 {
 				return nil
@@ -209,7 +168,7 @@ var (
 			}
 			_, _ = c.App.Println("success")
 			return nil
-		}),
+		},
 	}
 	cmdDel = &grb.Command{
 		Name:    "DEL",
@@ -219,7 +178,7 @@ var (
 		Args: func(a *grb.Args) {
 			a.StringList(argKey, "KV's keys, e.g. \"key0 key1 key2\"")
 		},
-		Run: wrapCmdRunFunc(func(c *grb.Context) error {
+		Run: func(c *grb.Context) error {
 			keys := c.Args.StringList(argKey)
 			err := exeDelFunc(keys)
 			if err != nil {
@@ -228,7 +187,7 @@ var (
 			}
 			_, _ = c.App.Println("success")
 			return nil
-		}),
+		},
 	}
 	cmdRangeBegin = &grb.Command{
 		Name:    "RANGE",
@@ -241,7 +200,7 @@ var (
 			a.Bool(argAsc, "order of KV's key", grb.Default(true))
 			a.Bool(argLinearizable, "whether to do linearizable reads", grb.Default(true))
 		},
-		Run: wrapCmdRunFunc(func(c *grb.Context) error {
+		Run: func(c *grb.Context) error {
 			from := c.Args.String(argFrom)
 			to := c.Args.String(argTo)
 			asc := c.Args.Bool(argAsc)
@@ -254,17 +213,17 @@ var (
 			rangeExe = exe
 			c.App.SetPrompt(exeRangePrompt)
 			return nil
-		}),
+		},
 	}
 	cmdRangeNext = &grb.Command{
 		Name:    "NEXT",
 		Aliases: []string{"next"},
 		Help:    "get next N KVs of the range iterator",
-		Usage:   "NEXT N",
+		Usage:   "NEXT [N]",
 		Args: func(a *grb.Args) {
-			a.Uint64(argCount, "expected count of KVs got", grb.Default(1))
+			a.Uint64(argCount, "expected count of KVs got", grb.Default(uint64(1))) // explicit casting!
 		},
-		Run: wrapCmdRunFunc(func(c *grb.Context) error {
+		Run: func(c *grb.Context) error {
 			N := c.Args.Uint64(argCount)
 			if N == 0 {
 				return nil
@@ -275,18 +234,18 @@ var (
 				return nil
 			}
 			if hasMore {
-				_, _ = c.App.Printf("range has more KVs")
+				_, _ = c.App.Printf("range has more KVs: \n")
 			} else {
-				_, _ = c.App.Printf("no more KVs")
+				_, _ = c.App.Printf("no more KVs. \n")
 			}
 			for _, kv := range kvs {
-				_, _ = c.App.Printf("{K: %s, V: %s}", kv.Key, kv.Val)
+				_, _ = c.App.Printf("{K: %s, V: %s} ", kv.Key, kv.Val)
 			}
 			if len(kvs) > 0 {
 				_, _ = c.App.Println()
 			}
 			return nil
-		}),
+		},
 	}
 	cmdRangeClose = &grb.Command{
 		Name:    "CLOSE",
@@ -295,7 +254,7 @@ var (
 		Usage:   "CLOSE",
 		Args: func(a *grb.Args) {
 		},
-		Run: wrapCmdRunFunc(func(c *grb.Context) error {
+		Run: func(c *grb.Context) error {
 			var exe = rangeExe
 			rangeExe = nil
 			c.App.SetPrompt(normalPrompt)
@@ -303,7 +262,7 @@ var (
 				c.App.PrintError(err)
 			}
 			return nil
-		}),
+		},
 	}
 
 	// endregion
@@ -316,20 +275,68 @@ var (
 		Help:    "add a new member",
 		Usage:   "ADDMEM str",
 		Args: func(a *grb.Args) {
-			a.String(argMember, "member's field sequence, e.g. "+
-				"\"name=node2;host=127.0.0.1;raftPort=8080;servicePort=8090;learner=true;\"")
+			a.String(argMember, "member's field sequence, isLearner default false, e.g. "+
+				"\"name=node2;host=127.0.0.1;raftPort=8080;servicePort=8090;isLearner=true;\"")
 		},
-		Run: wrapCmdRunFunc(func(c *grb.Context) error {
-			_ = c.Args.String(argMember) // TODO: convert to rpcpb.Member
-			members, err := exeAddMemberFunc(new(rpcpb.Member))
+		Run: func(c *grb.Context) error {
+			mem := new(rpcpb.Member)
+			seqs := strings.Split(c.Args.String(argMember), ";")
+			fieldSet := map[string]bool{}
+			var err error
+			var fields int
+			var port uint64
+			for _, seq := range seqs {
+				seq = strings.TrimSpace(seq)
+				kv := strings.Split(seq, "=")
+				if len(kv) != 2 {
+					continue
+				}
+				key, val := strings.TrimSpace(kv[0]), strings.TrimSpace(kv[1])
+				if fieldSet[key] {
+					c.App.PrintError(ErrAddMemberArgumentsInvalid)
+					return nil
+				}
+				fieldSet[key] = true
+				switch key {
+				case "name":
+					mem.Name = val
+					fields++
+				case "host":
+					mem.Host = val
+					fields++
+				case "raftPort":
+					port, err = strconv.ParseUint(val, 10, 32)
+					mem.RaftPort = uint32(port)
+					fields++
+				case "servicePort":
+					port, err = strconv.ParseUint(val, 10, 32)
+					mem.ServicePort = uint32(port)
+					fields++
+				case "isLearner":
+					if val == "true" {
+						mem.IsLearner = true
+					} else if val == "false" {
+						mem.IsLearner = false
+					}
+				default:
+				}
+				if err != nil {
+					break
+				}
+			}
+			if err != nil || fields != 4 {
+				c.App.PrintError(ErrAddMemberArgumentsInvalid)
+				return nil
+			}
+			members, err := exeAddMemberFunc(mem)
 			if err != nil {
 				c.App.PrintError(err)
 				return nil
 			}
 			_, _ = c.App.Println("success")
-			_, _ = c.App.Println(members) // TODO: print members
+			_, _ = c.App.Println(members)
 			return nil
-		}),
+		},
 	}
 	cmdPromoteMember = &grb.Command{
 		Name:    "PROMEM",
@@ -339,7 +346,7 @@ var (
 		Args: func(a *grb.Args) {
 			a.Uint64(argID, "member's node ID")
 		},
-		Run: wrapCmdRunFunc(func(c *grb.Context) error {
+		Run: func(c *grb.Context) error {
 			nodeID := c.Args.Uint64(argID)
 			members, err := exePromoteMemberFunc(nodeID)
 			if err != nil {
@@ -349,7 +356,7 @@ var (
 			_, _ = c.App.Println("success")
 			_, _ = c.App.Println(members)
 			return nil
-		}),
+		},
 	}
 	cmdRemoveMember = &grb.Command{
 		Name:    "RMVMEM",
@@ -359,7 +366,7 @@ var (
 		Args: func(a *grb.Args) {
 			a.Uint64(argID, "member's node ID")
 		},
-		Run: wrapCmdRunFunc(func(c *grb.Context) error {
+		Run: func(c *grb.Context) error {
 			nodeID := c.Args.Uint64(argID)
 			members, err := exeRemoveMemberFunc(nodeID)
 			if err != nil {
@@ -369,7 +376,7 @@ var (
 			_, _ = c.App.Println("success")
 			_, _ = c.App.Println(members)
 			return nil
-		}),
+		},
 	}
 	cmdClusterStatus = &grb.Command{
 		Name:    "CSTATUS",
@@ -380,7 +387,7 @@ var (
 			a.Uint64(argID, "member's node ID", grb.Default(raft.None))
 			a.Bool(argLinearizable, "whether to do linearizable reads", grb.Default(false))
 		},
-		Run: wrapCmdRunFunc(func(c *grb.Context) error {
+		Run: func(c *grb.Context) error {
 			nodeID := c.Args.Uint64(argID)
 			linearizable := c.Args.Bool(argLinearizable)
 			status, err := exeClusterStatusFUnc(nodeID, linearizable)
@@ -391,7 +398,7 @@ var (
 			_, _ = c.App.Println("success")
 			_, _ = c.App.Println(status)
 			return nil
-		}),
+		},
 	}
 
 	// endregion
@@ -407,7 +414,7 @@ var (
 			a.Uint64(argID, "member's node ID", grb.Default(raft.None))
 			a.Bool(argLinearizable, "whether to do linearizable reads", grb.Default(false))
 		},
-		Run: wrapCmdRunFunc(func(c *grb.Context) error {
+		Run: func(c *grb.Context) error {
 			nodeID := c.Args.Uint64(argID)
 			linearizable := c.Args.Bool(argLinearizable)
 			status, err := exeRaftStatusFunc(nodeID, linearizable)
@@ -418,7 +425,7 @@ var (
 			_, _ = c.App.Println("success")
 			_, _ = c.App.Println(status)
 			return nil
-		}),
+		},
 	}
 
 	cmdTransferLeader = &grb.Command{
@@ -430,7 +437,7 @@ var (
 			a.Uint64(argFrom, "from member node ID")
 			a.Uint64(argTo, "to member node ID")
 		},
-		Run: wrapCmdRunFunc(func(c *grb.Context) error {
+		Run: func(c *grb.Context) error {
 			fromID := c.Args.Uint64(argFrom)
 			toID := c.Args.Uint64(argTo)
 			err := exeTransferLeaderFunc(fromID, toID)
@@ -440,28 +447,63 @@ var (
 			}
 			_, _ = c.App.Println("success")
 			return nil
-		}),
+		},
 	}
 
 	// endregion
 )
 
 func init() {
-	app.AddCommand(cmdGet)
-	app.AddCommand(cmdPut)
-	app.AddCommand(cmdDel)
+	var interceptCmdRun = func(inner func(c *grb.Context) error) func(c *grb.Context) error {
+		return func(c *grb.Context) error {
+			switch c.Command.Name {
+			case cmdGet.Name:
+				fallthrough
+			case cmdPut.Name:
+				fallthrough
+			case cmdDel.Name:
+				fallthrough
 
-	app.AddCommand(cmdRangeBegin)
-	app.AddCommand(cmdRangeNext)
-	app.AddCommand(cmdRangeClose)
+			case cmdAddMember.Name:
+				fallthrough
+			case cmdPromoteMember.Name:
+				fallthrough
+			case cmdRemoveMember.Name:
+				fallthrough
+			case cmdClusterStatus.Name:
+				fallthrough
+			case cmdRaftStatus.Name:
+				fallthrough
+			case cmdTransferLeader.Name:
+				fallthrough
+			case cmdRangeBegin.Name:
+				if rangeExe != nil {
+					c.App.PrintError(ErrClientStateInvalid)
+					return nil
+				}
+			case cmdRangeNext.Name:
+				fallthrough
+			case cmdRangeClose.Name:
+				if rangeExe == nil {
+					c.App.PrintError(ErrClientStateInvalid)
+					return nil
+				}
+			default:
+				c.App.PrintError(ErrUnknownCommand)
+				return nil
+			}
+			return inner(c)
+		}
+	}
 
-	app.AddCommand(cmdAddMember)
-	app.AddCommand(cmdPromoteMember)
-	app.AddCommand(cmdRemoveMember)
-	app.AddCommand(cmdClusterStatus)
-
-	app.AddCommand(cmdRaftStatus)
-	app.AddCommand(cmdTransferLeader)
+	for _, cmd := range [...]*grb.Command{
+		cmdGet, cmdPut, cmdDel, cmdRangeBegin, cmdRangeNext, cmdRangeClose,
+		cmdAddMember, cmdPromoteMember, cmdRemoveMember, cmdClusterStatus,
+		cmdRaftStatus, cmdTransferLeader,
+	} {
+		cmd.Run = interceptCmdRun(cmd.Run)
+		app.AddCommand(cmd)
+	}
 
 	app.OnInit(func(a *grb.App, flags grb.FlagMap) error {
 		host := flags.String(flagHost)

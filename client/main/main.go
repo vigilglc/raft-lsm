@@ -8,17 +8,19 @@ import (
 	"github.com/vigilglc/raft-lsm/server/api/rpcpb"
 	"github.com/vigilglc/raft-lsm/server/backend/kvpb"
 	"log"
+	"os"
 	"strings"
 )
 
-func initApp() {
-	var ctx context.Context
-	balancer := client.NewBalancer(context.Background())
+func initApp(ctx context.Context,
+	balancerGen func(ctx context.Context) client.Balancer,
+	clientGen func(ctx context.Context, host string) client.Client) {
+	balancer := balancerGen(ctx)
 	ctx = balancer.Context()
 	app.SetInitFunc(func(hosts []string) error {
 		for _, host := range hosts {
 			host = strings.TrimSpace(host)
-			balancer.AddClient(client.NewClient(ctx, host))
+			balancer.AddClient(clientGen(ctx, host))
 		}
 		return nil
 	})
@@ -89,7 +91,7 @@ func initApp() {
 		}
 		if err == nil {
 			host := client.GetMemberHost(mem)
-			balancer.AddClient(client.NewClient(ctx, host))
+			balancer.AddClient(clientGen(ctx, host))
 		}
 		return
 	})
@@ -151,6 +153,20 @@ func initApp() {
 }
 
 func main() {
-	initApp()
+	var clientGen = client.NewClient
+	var testing bool
+	for i, arg := range os.Args {
+		if arg == "--test" {
+			os.Args = append(os.Args[:i], os.Args[i+1:]...)
+			testing = true
+		}
+	}
+	if testing {
+		clientGen = func(ctx context.Context, host string) (client client.Client) {
+			return newFakeClient(host)
+		}
+		log.Println("testing mode...")
+	}
+	initApp(context.Background(), client.NewBalancer, clientGen)
 	log.Fatal(app.Run())
 }

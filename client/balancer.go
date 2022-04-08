@@ -43,6 +43,7 @@ type lockerClient struct {
 
 func NewBalancer(ctx context.Context) Balancer {
 	ret := new(balancer)
+	ret.hostClientM = map[string]*lockerClient{}
 	ret.ctx, ret.cancel = context.WithCancel(ctx)
 	return ret
 }
