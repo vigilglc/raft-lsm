@@ -1,8 +1,9 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/spf13/cobra"
-	"os"
+	"strings"
 )
 
 const (
@@ -19,6 +20,14 @@ type CommandFlags struct {
 	bFlags  map[string]bool
 	sFlags  map[string]string
 	ssFlags map[string][]string
+}
+
+func NewCommandFlags() *CommandFlags {
+	return &CommandFlags{
+		bFlags:  map[string]bool{},
+		sFlags:  map[string]string{},
+		ssFlags: map[string][]string{},
+	}
 }
 
 func (cf *CommandFlags) ConfFilePath() (res string, set bool) {
@@ -59,48 +68,84 @@ func (cf *CommandFlags) LogOutputPaths() (res []string, set bool) {
 type Hook func(cmdFlags *CommandFlags) error
 
 var globalErr error
+
+func setGlobalErr(err error) {
+	if globalErr == nil {
+		globalErr = err
+	}
+}
+
 var localHook Hook
 var (
 	root = cobra.Command{
-		Use:  os.Args[0],
+		Use: "raft-lsm-server --config file " +
+			"[--new true|false] [--sync true|false] [--dev true|false] " +
+			"[--dir path] [--level lv] [--logout out...]",
 		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			var cmdFlags = new(CommandFlags)
+			var cmdFlags = NewCommandFlags()
 			for _, sf := range [...]string{confFilePathFlag, dataDirFlag, logLevelFlag} {
-				if val, err := cmd.Flags().GetString(sf); err == nil {
-					cmdFlags.sFlags[sf] = val
+				if val, err := cmd.Flags().GetString(sf); err == nil && len(val) != 0 {
+					if val = strings.TrimSpace(val); len(val) == 0 {
+						continue
+					}
+					cmdFlags.sFlags[sf] = strings.TrimSpace(val)
 				}
 			}
 			for _, bf := range [...]string{newClusterFlag, backendSyncFlag, developmentFlag} {
-				if val, err := cmd.Flags().GetBool(bf); err == nil {
+				if sBool, err := cmd.Flags().GetString(bf); err == nil && len(sBool) != 0 {
+					sBool = strings.ToLower(strings.TrimSpace(sBool))
+					var val = false
+					if sBool == "true" {
+						val = true
+					} else if sBool != "false" {
+						setGlobalErr(fmt.Errorf("cmd flag %s, true or false expected", bf))
+						return
+					}
 					cmdFlags.bFlags[bf] = val
 				}
 			}
 			for _, ssf := range [...]string{logOutputPathsFlag} {
-				if val, err := cmd.Flags().GetStringSlice(ssf); err == nil {
+				if val, err := cmd.Flags().GetStringSlice(ssf); err == nil && len(val) != 0 {
 					cmdFlags.ssFlags[ssf] = val
 				}
 			}
-			globalErr = localHook(cmdFlags)
+			setGlobalErr(localHook(cmdFlags))
 		},
 	}
 )
 
 func init() {
 	root.Flags().String(confFilePathFlag, "", "server config file path")
-	_ = root.MarkFlagRequired(confFilePathFlag)
-	root.Flags().Bool(newClusterFlag, true, "join a new? cluster")
+	if err := root.MarkFlagRequired(confFilePathFlag); err != nil {
+		panic("failed to mark flags required")
+	}
+	root.Flags().String(newClusterFlag, "", "join a new? cluster")
+	root.Flags().String(backendSyncFlag, "", "whether to do backend fsync")
+	root.Flags().String(developmentFlag, "", "development mode")
 	root.Flags().String(dataDirFlag, "", "server data directory")
-	root.Flags().Bool(backendSyncFlag, false, "whether to do backend fsync")
-	root.Flags().Bool(developmentFlag, false, "development mode")
-	root.Flags().String(logLevelFlag, "debug", "log level")
-	root.Flags().StringSlice(logOutputPathsFlag, nil, "log output path")
+	root.Flags().String(logLevelFlag, "", "log level")
+	root.Flags().StringSlice(logOutputPathsFlag, nil, "log output paths")
+
+	root.SetUsageFunc(func(cmd *cobra.Command) error {
+		var err error
+		_, err = fmt.Fprintln(cmd.OutOrStderr(), `Usage:
+  raft-lsm-server --config file [--new true|false] [--sync true|false] [--dev true|false] [--dir path] [--level lv] [--logout out...]`)
+		_, err = fmt.Fprintln(cmd.OutOrStderr(), `Flags:
+      --config    server config file path
+      --new       join a new? cluster
+      --sync   	  whether to do backend fsync
+      --dev       development mode
+  -h, --help      help for raft-lsm-server
+      --dir       server data directory
+      --level     log level
+      --logout    log output paths`)
+		return err
+	})
 }
 
 func Parse(hook Hook) error {
 	localHook = hook
-	if err := root.Execute(); err != nil {
-		return err
-	}
+	setGlobalErr(root.Execute())
 	return globalErr
 }
