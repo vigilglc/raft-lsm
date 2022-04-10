@@ -37,10 +37,11 @@ func main() {
 		if ss, set := cmdFlags.LogOutputPaths(); set {
 			cfg.LogOutputPaths = ss
 		}
-		return
+		return config.Validate(cfg)
 	}); err != nil {
 		log.Fatal(err)
 	}
+	cfg.MakeLogger()
 	if err := api.StartService(cfg); err != nil {
 		log.Fatal(err)
 	}

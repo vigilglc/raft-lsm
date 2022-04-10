@@ -1,16 +1,19 @@
-# cluster
-clusterName = "raft-lsm"
-newCluster = true
-# raft and storage
+#Region: raft and storage
+#dataDir = "./"
 oneTickMs = 100
 electionTicks = 10
 heartbeatTicks = 1
 backendSync = false
 backendForceClose = false
-SnapshotThreshold = 100000
-# logger
+snapshotThreshold = 10000
+#Region: logger
 development = true
 logLevel = "debug"
 logOutputPaths = ["stderr"]
-# req and resp
+#Region: req and resp
 readIndexBatchTimeoutMs = 500
+#Region: cluster, must be the last, since toml Tables
+clusterName = "raft-lsm"
+newCluster = true
+#[localAddrInfo]
+#[[peerAddrInfos]]

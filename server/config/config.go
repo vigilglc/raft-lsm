@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -30,9 +29,8 @@ type ServerConfig struct {
 	HeartbeatTicks    int    `json:"heartbeatTicks" toml:"heartbeatTicks"`
 	BackendSync       bool   `json:"backendSync,omitempty" toml:"backendSync"`             // whether Backend does fsync...
 	BackendForceClose bool   `json:"backendForceClose,omitempty" toml:"backendForceClose"` // if true, Backend.Close will interrupt any in-flight writes...
-	SnapshotThreshold uint64 `json:"SnapshotThreshold" toml:"snapshotThreshold"`
+	SnapshotThreshold uint64 `json:"snapshotThreshold" toml:"snapshotThreshold"`
 	// logger
-	lgMu           sync.Mutex
 	lg             *zap.Logger
 	Development    bool     `json:"development,omitempty" toml:"development"`
 	LogLevel       string   `json:"logLevel,omitempty" toml:"logLevel"`
@@ -50,13 +48,48 @@ var strMapZapLevel = map[string]zapcore.Level{
 	"fatal": zap.FatalLevel,
 }
 
-func (cfg *ServerConfig) GetLogger() *zap.Logger {
-	var err error
-	cfg.lgMu.Lock()
-	defer cfg.lgMu.Unlock()
-	if cfg.lg != nil {
-		return cfg.lg
+func Validate(cfg *ServerConfig) error {
+	if cluster.AddInfoEmpty(cfg.LocalAddrInfo) {
+		return fmt.Errorf("server config: local addr info not supplied")
 	}
+	if cfg.NewCluster {
+		var err = fmt.Errorf("server config: peer addr info not supplied")
+		if len(cfg.PeerAddrInfos) == 0 {
+			return err
+		}
+		for _, pi := range cfg.PeerAddrInfos {
+			if cluster.AddInfoEmpty(pi) {
+				return fmt.Errorf("server config: %v", err)
+			}
+		}
+	}
+	if len(strings.TrimSpace(cfg.DataDir)) == 0 {
+		return fmt.Errorf("server config: empty data directory supplied")
+	}
+	if _, err := filepath.Abs(cfg.DataDir); err != nil {
+		return err
+	}
+	if cfg.OneTickMs == 0 || cfg.ElectionTicks == 0 || cfg.HeartbeatTicks == 0 {
+		return fmt.Errorf("server config: values for oneTickMs, electionTicks, heartbeatTicks should be positive")
+	}
+	if cfg.SnapshotThreshold == 0 {
+		return fmt.Errorf("server config: value for snapshotThreshold should be positive")
+	}
+	if cfg.ReadIndexBatchTimeoutMs == 0 {
+		return fmt.Errorf("server config: value for readIndexBatchTimeoutMs should be positive")
+	}
+	return nil
+}
+
+func (cfg *ServerConfig) GetLogger() *zap.Logger {
+	return cfg.lg
+}
+
+func (cfg *ServerConfig) MakeLogger() {
+	if cfg.lg != nil {
+		return
+	}
+	var err error
 	logLevel := zapcore.InfoLevel
 	if lv, ok := strMapZapLevel[strings.ToLower(cfg.LogLevel)]; ok {
 		logLevel = lv
@@ -80,7 +113,6 @@ func (cfg *ServerConfig) GetLogger() *zap.Logger {
 	if err != nil {
 		panic("server config failed to create logger")
 	}
-	return cfg.lg
 }
 
 func (cfg *ServerConfig) GetDataDir() string {
@@ -158,6 +190,83 @@ func DefaultServerConfig() *ServerConfig {
 	return ret
 }
 
+const (
+	configKeyClusterName             = "clusterName"
+	configKeyNewCluster              = "newCluster"
+	configKeyLocalAddrInfo           = "localAddrInfo"
+	configKeyPeerAddrInfos           = "peerAddrInfos"
+	configKeyDataDir                 = "dataDir"
+	configKeyOneTickMs               = "oneTickMs"
+	configKeyElectionTicks           = "electionTicks"
+	configKeyHeartbeatTicks          = "heartbeatTicks"
+	configKeyBackendSync             = "backendSync"
+	configKeyBackendForceClose       = "backendForceClose"
+	configKeySnapshotThreshold       = "snapshotThreshold"
+	configKeyDevelopment             = "development"
+	configKeyLogLevel                = "logLevel"
+	configKeyLogOutputPaths          = "logOutputPaths"
+	configKeyReadIndexBatchTimeoutMs = "readIndexBatchTimeoutMs"
+)
+
+var (
+	configKeyNames = [...]string{
+		configKeyClusterName,
+		configKeyNewCluster,
+		configKeyLocalAddrInfo,
+		configKeyPeerAddrInfos,
+		configKeyDataDir,
+		configKeyOneTickMs,
+		configKeyElectionTicks,
+		configKeyHeartbeatTicks,
+		configKeyBackendSync,
+		configKeyBackendForceClose,
+		configKeySnapshotThreshold,
+		configKeyDevelopment,
+		configKeyLogLevel,
+		configKeyLogOutputPaths,
+		configKeyReadIndexBatchTimeoutMs,
+	}
+)
+
+func mergeTomlConfigs(base, incr *ServerConfig, meta toml.MetaData) {
+	for _, name := range configKeyNames {
+		if meta.IsDefined(name) {
+			switch name {
+			case configKeyClusterName:
+				base.ClusterName = incr.ClusterName
+			case configKeyNewCluster:
+				base.NewCluster = incr.NewCluster
+			case configKeyLocalAddrInfo:
+				base.LocalAddrInfo = incr.LocalAddrInfo
+			case configKeyPeerAddrInfos:
+				base.PeerAddrInfos = incr.PeerAddrInfos
+			case configKeyDataDir:
+				base.DataDir = incr.DataDir
+			case configKeyOneTickMs:
+				base.OneTickMs = incr.OneTickMs
+			case configKeyElectionTicks:
+				base.ElectionTicks = incr.ElectionTicks
+			case configKeyHeartbeatTicks:
+				base.HeartbeatTicks = incr.HeartbeatTicks
+			case configKeyBackendSync:
+				base.BackendSync = incr.BackendSync
+			case configKeyBackendForceClose:
+				base.BackendForceClose = incr.BackendForceClose
+			case configKeySnapshotThreshold:
+				base.SnapshotThreshold = incr.SnapshotThreshold
+			case configKeyDevelopment:
+				base.Development = incr.Development
+			case configKeyLogLevel:
+				base.LogLevel = incr.LogLevel
+			case configKeyLogOutputPaths:
+				base.LogOutputPaths = incr.LogOutputPaths
+			case configKeyReadIndexBatchTimeoutMs:
+				base.ReadIndexBatchTimeoutMs = incr.ReadIndexBatchTimeoutMs
+			}
+		}
+	}
+}
+
 func ReadServerConfig(fn string) (ret *ServerConfig, err error) {
 	ret = DefaultServerConfig()
 	bytes, err := ioutil.ReadFile(fn)
@@ -165,10 +274,12 @@ func ReadServerConfig(fn string) (ret *ServerConfig, err error) {
 		return ret, err
 	}
 	switch filepath.Ext(fn) {
-	case "json":
+	case ".json":
 		err = json.Unmarshal(bytes, ret)
-	case "toml":
-		_, err := toml.Decode(string(bytes), ret)
+	case ".toml":
+		local := &ServerConfig{}
+		meta, err := toml.Decode(string(bytes), local)
+		mergeTomlConfigs(ret, local, meta)
 		if err != nil {
 			return ret, err
 		}
