@@ -19,7 +19,7 @@ type Balancer interface {
 	AllClientHosts() []string
 
 	Resolve() error
-	Pick() (client Client, release func())
+	Pick() (client Client, release func()) // TODO: use grpc balancer to do random pick, balancer.Register
 	PickByID(ID uint64) (client Client, release func())
 	PickByName(name string) (client Client, release func())
 	PickByHost(host string) (client Client, release func())
