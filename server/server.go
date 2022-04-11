@@ -62,8 +62,11 @@ type Server struct {
 
 func NewServer(cfg *config.ServerConfig) *Server {
 	lg := cfg.GetLogger()
-	btSrv := bootstrap.Bootstrap(cfg)
-
+	btSrv, err := bootstrap.Bootstrap(cfg)
+	if err != nil {
+		_ = btSrv.Close()
+		lg.Panic("failed to bootstrap server", zap.Error(err))
+	}
 	cl := btSrv.BootstrappedCluster.Cluster
 	uintID := cl.GetLocalMemberID()
 	strID := strconv.FormatUint(uintID, 10)
@@ -159,6 +162,9 @@ func (s *Server) run() {
 		err := s.backend.Close()
 		if err != nil {
 			s.lg.Error("failed to close backend", zap.Error(err))
+		}
+		if err := s.walStorage.Close(); err != nil {
+			s.lg.Error("failed to close wal storage", zap.Error(err))
 		}
 		s.transport.Stop()
 	}()

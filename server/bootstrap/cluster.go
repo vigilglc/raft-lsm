@@ -17,44 +17,53 @@ type BootstrappedCluster struct {
 	Remotes []*cluster.Member
 }
 
-func bootstrapCluster(cfg *config.ServerConfig, haveWAL bool, be backend.Backend) (btCl *BootstrappedCluster, err error) {
+func bootstrapCluster(cfg *config.ServerConfig, btWAL *bootstrappedWAL, be backend.Backend) (btCl *BootstrappedCluster, err error) {
 	switch {
-	case !haveWAL: // newly or existing launched cluster, new node to join
-		return bootstrapClusterWithoutWAL(cfg, be)
-	case haveWAL && !cfg.NewCluster: // existing cluster, e.g. old node to restart
-		return bootstrapExistingClusterWithWAL(cfg, be)
+	case !btWAL.haveWAL: // newly or existing launched cluster, new node to join
+		return bootstrapClusterWithoutWAL(cfg, btWAL, be)
+	case btWAL.haveWAL && !cfg.NewCluster: // existing cluster, e.g. old node to restart
+		return bootstrapExistingClusterWithWAL(cfg, btWAL.walMeta, be)
 	default:
 		return nil, errors.New("unsupported bootstrap config")
 	}
 }
 
+type clusterStatusFetcher func(cfg *config.ServerConfig, mem *cluster.Member) (status *rpcpb.ClusterStatusResponse, err error)
+
+var defaultClusterStatusFetcher clusterStatusFetcher = func(cfg *config.ServerConfig, mem *cluster.Member) (
+	status *rpcpb.ClusterStatusResponse, err error) {
+	lg := cfg.GetLogger()
+	cCtx, cCancel := context.WithTimeout(context.Background(), cfg.GetPeerDialTimeout())
+	defer cCancel()
+	conn, err := grpc.DialContext(cCtx, mem.ServiceAddress())
+	if err != nil {
+		lg.Info("failed to connect to raft service", zap.String("addr", mem.ServiceAddress()), zap.Error(err))
+		return nil, err
+	}
+	client := rpcpb.NewClusterServiceClient(conn)
+	rCtx, rCancel := context.WithTimeout(context.Background(), cfg.GetRequestTimeout())
+	defer rCancel()
+	resp, err := client.ClusterStatus(rCtx, &rpcpb.ClusterStatusRequest{Linearizable: true})
+	if err != nil {
+		lg.Info("failed to receive response", zap.String("addr", mem.ServiceAddress()), zap.Error(err))
+		return nil, err
+	}
+	if len(resp.Members) == 0 {
+		return nil, fmt.Errorf("got no members from %s", mem.ServiceAddress())
+	}
+	return resp, nil
+}
+
 func fetchRemoteClusterStatus(cfg *config.ServerConfig, members []*cluster.Member) (status *rpcpb.ClusterStatusResponse, err error) {
-	var failed = true
 	for _, mem := range members {
-		cCtx, cCancel := context.WithTimeout(context.Background(), cfg.GetPeerDialTimeout())
-		conn, err := grpc.DialContext(cCtx, mem.ServiceAddress(), grpc.WithBlock())
-		if err != nil {
-			cCancel()
-			continue
-		}
-		client := rpcpb.NewClusterServiceClient(conn)
-		rCtx, rCancel := context.WithTimeout(context.Background(), cfg.GetRequestTimeout())
-		resp, err := client.ClusterStatus(rCtx, &rpcpb.ClusterStatusRequest{Linearizable: true})
-		if err == nil && len(resp.Members) > 0 {
-			failed = false
-			status = resp
-		}
-		rCancel()
-		cCancel()
-		_ = conn.Close()
-		if !failed {
-			return status, nil
+		if resp, err := defaultClusterStatusFetcher(cfg, mem); err == nil {
+			return resp, err
 		}
 	}
 	return nil, fmt.Errorf("could not fetch cluster status from remote members")
 }
 
-func bootstrapClusterWithoutWAL(cfg *config.ServerConfig, be backend.Backend) (btCl *BootstrappedCluster, err error) {
+func bootstrapClusterWithoutWAL(cfg *config.ServerConfig, btWAL *bootstrappedWAL, be backend.Backend) (btCl *BootstrappedCluster, err error) {
 	lg := cfg.GetLogger()
 	localMem := cluster.NewMember(cfg.ClusterName, cfg.LocalAddrInfo, false)
 	cl, err := cluster.NewClusterBuilder(lg, cfg.ClusterName, be).
@@ -64,7 +73,7 @@ func bootstrapClusterWithoutWAL(cfg *config.ServerConfig, be backend.Backend) (b
 		return nil, err
 	}
 	var remotes []*cluster.Member
-	if cfg.NewCluster {
+	if !cfg.NewCluster {
 		members := cl.GetMembers()
 		status, err := fetchRemoteClusterStatus(cfg, members)
 		if err != nil {
@@ -91,19 +100,25 @@ func bootstrapClusterWithoutWAL(cfg *config.ServerConfig, be backend.Backend) (b
 		lg.Error("failed to push members to backend", zap.Error(err))
 		return nil, err
 	}
+	if err := btWAL.createWAL(cfg, cl.GetClusterName(), cl.GetClusterID(), localMem.ID); err != nil {
+		lg.Error("failed to create WAL", zap.Error(err))
+		return nil, err
+	}
 	return &BootstrappedCluster{
 		Cluster: cl,
 		Remotes: remotes,
 	}, err
 }
 
-func bootstrapExistingClusterWithWAL(cfg *config.ServerConfig, be backend.Backend) (btCl *BootstrappedCluster, err error) {
+func bootstrapExistingClusterWithWAL(cfg *config.ServerConfig, meta *walMeta, be backend.Backend) (btCl *BootstrappedCluster, err error) {
 	lg := cfg.GetLogger()
 	localMem := cluster.NewMember(cfg.ClusterName, cfg.LocalAddrInfo, false)
 	cl, err := cluster.NewClusterBuilder(lg, cfg.ClusterName, be).SetLocalMember(localMem.ID).Finish()
 	if err != nil {
 		return nil, err
 	}
+	cl.SetClusterName(meta.clusterName)
+	cl.SetClusterID(meta.clusterID)
 	if err := cl.RecoverMembers(); err != nil {
 		return nil, err
 	}

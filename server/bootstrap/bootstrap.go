@@ -18,43 +18,56 @@ type BootstrappedServer struct {
 	BootstrappedRaft    *BootstrappedRaft
 }
 
-func Bootstrap(cfg *config.ServerConfig) (srv *BootstrappedServer) {
-	var failed = true
+func (srv *BootstrappedServer) Close() error {
+	var err error
+	if srv.Backend != nil {
+		err = srv.Backend.Close()
+	}
+	if srv.WAL != nil {
+		if er := srv.WAL.Close(); err == nil && er != nil {
+			err = er
+		}
+	}
+	return err
+}
+
+func Bootstrap(cfg *config.ServerConfig) (srv *BootstrappedServer, berr error) {
+	var setBerr = func(err error) {
+		if berr == nil {
+			berr = err
+		}
+	}
 	lg := cfg.GetLogger()
 	cfg.MakeDataDir()
-	defer func() {
-		if failed {
-			lg.Fatal("failed to bootstrap server")
-		}
-	}()
+
 	haveWAL := wal.Exist(cfg.GetWALDir())
 	snapshotter, snapshot := bootstrapSnapshot(cfg, haveWAL)
 	be := bootstrapBackend(cfg, snapshotter, snapshot)
-	defer func() {
-		if failed {
-			_ = be.Close()
-		}
-	}()
 
 	btWAL, err := bootstrapWAL(cfg, haveWAL, snapshot)
 	if err != nil {
+		setBerr(err)
 		lg.Error("failed to bootstrap WAL", zap.Error(err))
 		return
 	}
+
 	memStorage, err := btWAL.bootstrapMemoryStorage()
 	if err != nil {
+		setBerr(err)
 		lg.Error("failed to bootstrap memory Storage", zap.Error(err))
-		return nil
+		return
 	}
-	btCl, err := bootstrapCluster(cfg, haveWAL, be)
+	btCl, err := bootstrapCluster(cfg, btWAL, be)
 	if err != nil {
+		setBerr(err)
 		lg.Error("failed to bootstrap cluster", zap.Error(err))
 		return
 	}
 	btRaft, err := bootstrapRaft(cfg, haveWAL, btCl.Cluster, memStorage)
 	if err != nil {
+		setBerr(err)
 		lg.Error("failed to bootstrap raft", zap.Error(err))
-		return nil
+		return
 	}
 	srv = &BootstrappedServer{
 		Snapshotter:         snapshotter,
@@ -64,6 +77,5 @@ func Bootstrap(cfg *config.ServerConfig) (srv *BootstrappedServer) {
 		BootstrappedCluster: btCl,
 		BootstrappedRaft:    btRaft,
 	}
-	failed = false
-	return srv
+	return
 }

@@ -1,0 +1,27 @@
+#Region: raft and storage
+dataDir = "./"
+#oneTickMs = 100
+#electionTicks = 10
+#heartbeatTicks = 1
+#backendSync = false
+#backendForceClose = false
+#SnapshotThreshold = 100000
+#Region: logger
+#development = true
+logLevel = "info"
+logOutputPaths = ["stderr"]
+#Region: req and resp
+#readIndexBatchTimeoutMs = 500
+#Region: cluster, must be the last, since toml Tables
+#clusterName = "raft-lsm"
+#newCluster = true
+[localAddrInfo]
+name = "test-node-0"
+host = "localhost"
+servicePort = 400
+raftPort = 8000
+[[peerAddrInfos]]
+name = "test-node-1"
+host = "localhost"
+servicePort = 401
+raftPort = 8001

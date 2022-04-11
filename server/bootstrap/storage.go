@@ -2,7 +2,6 @@ package bootstrap
 
 import (
 	json "github.com/json-iterator/go"
-	"github.com/vigilglc/raft-lsm/server/cluster"
 	"github.com/vigilglc/raft-lsm/server/config"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
@@ -23,6 +22,7 @@ type bootstrappedWAL struct {
 
 type walMeta struct {
 	clusterName string
+	clusterID   uint64
 	localNodeID uint64
 }
 
@@ -40,23 +40,10 @@ func bootstrapWAL(cfg *config.ServerConfig, haveWAL bool, snap *raftpb.Snapshot)
 	lg := cfg.GetLogger()
 	cfg.MakeWALDir()
 	if !haveWAL {
-		nodeID := cluster.ComputeMemberID(cfg.ClusterName, cfg.LocalAddrInfo)
-		walMeta := walMeta{clusterName: cfg.ClusterName, localNodeID: nodeID}
-		wmDat, err := encodeWalMeta(walMeta)
-		if err != nil {
-			lg.Error("failed to encode walMeta", zap.Error(err))
-			return nil, err
-		}
-		w, err := wal.Create(lg, cfg.GetWALDir(), wmDat)
-		if err != nil {
-			lg.Error("failed to create WAL", zap.Error(err))
-			return nil, err
-		}
-
 		return &bootstrappedWAL{
 			haveWAL: haveWAL,
-			wal:     w,
-			walMeta: &walMeta,
+			wal:     nil,
+			walMeta: nil,
 		}, nil
 	}
 	var walSnap walpb.Snapshot
@@ -118,4 +105,18 @@ func (btWAL *bootstrappedWAL) bootstrapMemoryStorage() (memStorage *raft.MemoryS
 		return nil, err
 	}
 	return memStorage, nil
+}
+
+func (btWAL *bootstrappedWAL) createWAL(cfg *config.ServerConfig, clusterName string, clusterID, nodeID uint64) error {
+	if btWAL.wal != nil {
+		return nil
+	}
+	walMeta := walMeta{clusterName: clusterName, clusterID: clusterID, localNodeID: nodeID}
+	wmDat, err := encodeWalMeta(walMeta)
+	if err != nil {
+		return err
+	}
+	btWAL.walMeta = &walMeta
+	btWAL.wal, err = wal.Create(cfg.GetLogger(), cfg.GetWALDir(), wmDat)
+	return err
 }
