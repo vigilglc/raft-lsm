@@ -142,7 +142,7 @@ func (cl *Cluster) RemoveMember(ai uint64, confState *raftpb.ConfState, ID uint6
 
 func (cl *Cluster) PromoteMember(ai uint64, confState *raftpb.ConfState, ID uint64) {
 	defer syncutil.SchedLockers(&cl.rwmu)()
-	cl.members[ID].IsLearner = true
+	cl.members[ID].IsLearner = false
 	if err := cl.promoteMember2Backend(ai, confState, ID); err != nil {
 		cl.lg.Fatal("failed to put PromoteMember changes to backend", zap.Error(err))
 	}

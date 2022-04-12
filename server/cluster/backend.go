@@ -31,9 +31,10 @@ func removedMemberIDKey(ID uint64) string {
 	return fmt.Sprintf("%s-%d", removedMemberIDKeyPrefix, ID)
 }
 
+// PushMembers2Backend only gets invoked on bootstrapping.
 func (cl *Cluster) PushMembers2Backend() error {
 	defer syncutil.SchedLockers(&cl.rwmu)()
-	builder := backend.NewBatchBuilder()
+	builder := backend.NewBatchBuilder().AppliedIndex(cl.be.AppliedIndex() + 1) // safe.
 	for _, mem := range cl.members {
 		memJst, err := json.MarshalToString(mem)
 		if err != nil {
@@ -56,8 +57,8 @@ func (cl *Cluster) addMember2Backend(ai uint64, confState *raftpb.ConfState, mem
 
 func (cl *Cluster) removeMember2Backend(ai uint64, confState *raftpb.ConfState, ID uint64) error {
 	err := cl.be.PutConfState(ai, *confState, []*kvpb.KV{
-		{Key: memberKey(ID), Val: strconv.FormatUint(ID, 10)},
-		{Key: removedMemberIDKey(ID), Val: ""},
+		{Key: memberKey(ID), Val: ""},
+		{Key: removedMemberIDKey(ID), Val: strconv.FormatUint(ID, 10)},
 	}...)
 	if err == nil {
 		err = cl.be.Del(ai, memberKey(ID))
@@ -75,7 +76,7 @@ func (cl *Cluster) promoteMember2Backend(ai uint64, confState *raftpb.ConfState,
 	if err != nil {
 		return err
 	}
-	mem.IsLearner = true
+	mem.IsLearner = false
 	return cl.addMember2Backend(ai, confState, mem)
 }
 
