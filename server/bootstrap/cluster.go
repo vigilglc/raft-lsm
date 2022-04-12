@@ -63,6 +63,24 @@ func fetchRemoteClusterStatus(cfg *config.ServerConfig, members []*cluster.Membe
 	return nil, fmt.Errorf("could not fetch cluster status from remote members")
 }
 
+func differentiateRemotes(localMems []*cluster.Member, status *rpcpb.ClusterStatusResponse) (remotes []*cluster.Member) {
+	var memMap = map[uint64]*cluster.Member{}
+	for _, mem := range localMems {
+		memMap[mem.ID] = mem
+	}
+	for _, pbMem := range status.Members {
+		if _, ok := memMap[pbMem.ID]; !ok {
+			remotes = append(remotes, cluster.NewMember(status.Name, cluster.AddrInfo{
+				Name:        pbMem.Name,
+				Host:        pbMem.Host,
+				ServicePort: uint16(pbMem.ServicePort),
+				RaftPort:    uint16(pbMem.RaftPort),
+			}, false))
+		}
+	}
+	return remotes
+}
+
 func bootstrapClusterWithoutWAL(cfg *config.ServerConfig, btWAL *bootstrappedWAL, be backend.Backend) (btCl *BootstrappedCluster, err error) {
 	lg := cfg.GetLogger()
 	localMem := cluster.NewMember(cfg.ClusterName, cfg.LocalAddrInfo, false)
@@ -81,20 +99,7 @@ func bootstrapClusterWithoutWAL(cfg *config.ServerConfig, btWAL *bootstrappedWAL
 		}
 		cl.SetClusterName(status.Name)
 		cl.SetClusterID(status.ID)
-		var memMap = map[uint64]*cluster.Member{}
-		for _, mem := range members {
-			memMap[mem.ID] = mem
-		}
-		for _, pbMem := range status.Members {
-			if _, ok := memMap[pbMem.ID]; !ok {
-				remotes = append(remotes, cluster.NewMember(status.Name, cluster.AddrInfo{
-					Name:        pbMem.Name,
-					Host:        pbMem.Host,
-					ServicePort: uint16(pbMem.ServicePort),
-					RaftPort:    uint16(pbMem.RaftPort),
-				}, false))
-			}
-		}
+		remotes = differentiateRemotes(members, status)
 	}
 	if err := cl.PushMembers2Backend(); err != nil {
 		lg.Error("failed to push members to backend", zap.Error(err))
@@ -122,8 +127,14 @@ func bootstrapExistingClusterWithWAL(cfg *config.ServerConfig, meta *walMeta, be
 	if err := cl.RecoverMembers(); err != nil {
 		return nil, err
 	}
+	members := cl.GetMembers()
+	status, err := fetchRemoteClusterStatus(cfg, members)
+	if err != nil {
+		return nil, err
+	}
+	remotes := differentiateRemotes(members, status)
 	return &BootstrappedCluster{
 		Cluster: cl,
-		Remotes: nil,
+		Remotes: remotes,
 	}, err
 }

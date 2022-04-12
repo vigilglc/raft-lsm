@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 	if !set {
 		os.Exit(-1)
 	}
-	testingDataDir := filepath.Join(gopath, "temp", "testing", "bootstrap-new-cluster")
+	testingDataDir := filepath.Join(gopath, "temp", "testing", "bootstrap-cluster")
 	testConfig.DataDir = testingDataDir
 	if err := config.Validate(testConfig); err != nil {
 		log.Fatalln(err)
@@ -36,6 +36,7 @@ func TestBootstrapNewClusterNewNode(t *testing.T) {
 	var err error
 	oldNewCluster := testConfig.NewCluster
 	testConfig.NewCluster = true
+	defer func() { _ = os.RemoveAll(testConfig.GetDataDir()) }()
 	defer func() {
 		testConfig.NewCluster = oldNewCluster
 	}()
@@ -52,6 +53,7 @@ func TestBootstrapOldClusterNewNode(t *testing.T) {
 	var err error
 	oldNewCluster := testConfig.NewCluster
 	oldClusterStatusFetcher := defaultClusterStatusFetcher
+	defer func() { _ = os.RemoveAll(testConfig.GetDataDir()) }()
 	defer func() {
 		testConfig.NewCluster = oldNewCluster
 		defaultClusterStatusFetcher = oldClusterStatusFetcher
