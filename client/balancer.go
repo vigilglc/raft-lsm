@@ -119,6 +119,8 @@ func (blc *balancer) Resolve() error {
 	}
 	defer syncutil.SchedLockers(&blc.rwmu)()
 	blc.members = resp.Members
+	blc.hostClientM = map[string]*lockerClient{}
+	blc.clients = nil
 	for _, mem := range resp.Members {
 		host := GetMemberHost(mem)
 		blc.doAddClient(NewClient(blc.ctx, host))
