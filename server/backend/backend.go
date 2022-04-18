@@ -17,22 +17,30 @@ import (
 )
 
 type Backend interface {
+	// AppliedIndex returns raft applied index.
 	AppliedIndex() uint64
+	// CurrConfState returns current cluster config state.
 	CurrConfState() raftpb.ConfState
+	// PutConfState puts confState if ai > AppliedIndex().
 	PutConfState(ai uint64, confState raftpb.ConfState, meta ...*kvpb.KV) error
-
+	// Get returns the val of key.
 	Get(key string) (val string, err error)
+	// Put puts key and val if ai > AppliedIndex().
 	Put(ai uint64, key, val string) error
+	// Del deletes key if ai > AppliedIndex().
 	Del(ai uint64, key string) error
+	// Write does batch writes.
 	Write(batch *Batch) error
-	// Range returns a channel conveying kv whose key ranges from 'from' to 'to'. Notice that 'from' is inclusive and
-	// 'to' is exclusive. 'closeC' should be closed by the caller on aborting reading from 'kvC'.
+	// Range returns a channel conveying kv whose key ranges from 'from' to 'to', where 'from' is inclusive and
+	// 'to' is exclusive. 'closeC' should be closed by the caller on stopping reading from 'kvC'.
 	Range(from, to string, asc bool) (kvC <-chan *kvpb.KV, errC <-chan error, closeC chan<- struct{})
-
+	// SnapshotStream returns a binary stream of snapshot.
 	SnapshotStream() (ai uint64, rc io.ReadCloser, size int64, err error)
+	// ReceiveSnapshot receives the snapshot from binary stream.
 	ReceiveSnapshot(ai uint64, rc io.ReadCloser) error
-
+	// Sync flushes journals to disk.
 	Sync() error
+	// Close closes the backend .
 	Close() error
 }
 
