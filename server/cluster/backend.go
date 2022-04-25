@@ -5,7 +5,6 @@ import (
 	json "github.com/json-iterator/go"
 	"github.com/vigilglc/raft-lsm/server/backend"
 	"github.com/vigilglc/raft-lsm/server/backend/kvpb"
-	"github.com/vigilglc/raft-lsm/server/utils/syncutil"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"strconv"
 )
@@ -29,20 +28,6 @@ func memberKey(ID uint64) string {
 
 func removedMemberIDKey(ID uint64) string {
 	return fmt.Sprintf("%s-%d", removedMemberIDKeyPrefix, ID)
-}
-
-// PushMembers2Backend only gets invoked on bootstrapping.
-func (cl *Cluster) PushMembers2Backend() error {
-	defer syncutil.SchedLockers(&cl.rwmu)()
-	builder := backend.NewBatchBuilder().AppliedIndex(cl.be.AppliedIndex() + 1) // safe.
-	for _, mem := range cl.members {
-		memJst, err := json.MarshalToString(mem)
-		if err != nil {
-			return err
-		}
-		builder = builder.Put(memberKey(mem.ID), memJst)
-	}
-	return cl.be.Write(builder.Finish())
 }
 
 func (cl *Cluster) addMember2Backend(ai uint64, confState *raftpb.ConfState, mem *Member) error {

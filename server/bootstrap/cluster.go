@@ -10,6 +10,7 @@ import (
 	"github.com/vigilglc/raft-lsm/server/config"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type BootstrappedCluster struct {
@@ -21,7 +22,7 @@ func bootstrapCluster(cfg *config.ServerConfig, btWAL *bootstrappedWAL, be backe
 	switch {
 	case !btWAL.haveWAL: // newly or existing launched cluster, new node to join
 		return bootstrapClusterWithoutWAL(cfg, btWAL, be)
-	case btWAL.haveWAL && !cfg.NewCluster: // existing cluster, e.g. old node to restart
+	case btWAL.haveWAL: // existing cluster, e.g. old node to restart
 		return bootstrapExistingClusterWithWAL(cfg, btWAL.walMeta, be)
 	default:
 		return nil, errors.New("unsupported bootstrap config")
@@ -35,7 +36,7 @@ var defaultClusterStatusFetcher clusterStatusFetcher = func(cfg *config.ServerCo
 	lg := cfg.GetLogger()
 	cCtx, cCancel := context.WithTimeout(context.Background(), cfg.GetPeerDialTimeout())
 	defer cCancel()
-	conn, err := grpc.DialContext(cCtx, mem.ServiceAddress())
+	conn, err := grpc.DialContext(cCtx, mem.ServiceAddress(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		lg.Info("failed to connect to raft service", zap.String("addr", mem.ServiceAddress()), zap.Error(err))
 		return nil, err
@@ -54,8 +55,11 @@ var defaultClusterStatusFetcher clusterStatusFetcher = func(cfg *config.ServerCo
 	return resp, nil
 }
 
-func fetchRemoteClusterStatus(cfg *config.ServerConfig, members []*cluster.Member) (status *rpcpb.ClusterStatusResponse, err error) {
+func fetchRemoteClusterStatus(cfg *config.ServerConfig, localMem *cluster.Member, members []*cluster.Member) (status *rpcpb.ClusterStatusResponse, err error) {
 	for _, mem := range members {
+		if localMem.ID == mem.ID {
+			continue
+		}
 		if resp, err := defaultClusterStatusFetcher(cfg, mem); err == nil {
 			return resp, err
 		}
@@ -91,19 +95,15 @@ func bootstrapClusterWithoutWAL(cfg *config.ServerConfig, btWAL *bootstrappedWAL
 		return nil, err
 	}
 	var remotes []*cluster.Member
-	if !cfg.NewCluster {
-		members := cl.GetMembers()
-		status, err := fetchRemoteClusterStatus(cfg, members)
+	members := cl.GetMembers()
+	if !cfg.NewCluster && len(members) > 1 {
+		status, err := fetchRemoteClusterStatus(cfg, localMem, members)
 		if err != nil {
 			return nil, err
 		}
 		cl.SetClusterName(status.Name)
 		cl.SetClusterID(status.ID)
 		remotes = differentiateRemotes(members, status)
-	}
-	if err := cl.PushMembers2Backend(); err != nil {
-		lg.Error("failed to push members to backend", zap.Error(err))
-		return nil, err
 	}
 	if err := btWAL.createWAL(cfg, cl.GetClusterName(), cl.GetClusterID(), localMem.ID); err != nil {
 		lg.Error("failed to create WAL", zap.Error(err))
@@ -127,12 +127,15 @@ func bootstrapExistingClusterWithWAL(cfg *config.ServerConfig, meta *walMeta, be
 	if err := cl.RecoverMembers(); err != nil {
 		return nil, err
 	}
+	var remotes []*cluster.Member
 	members := cl.GetMembers()
-	status, err := fetchRemoteClusterStatus(cfg, members)
-	if err != nil {
-		return nil, err
+	if len(members) > 1 {
+		status, err := fetchRemoteClusterStatus(cfg, localMem, members)
+		if err != nil {
+			return nil, err
+		}
+		remotes = differentiateRemotes(members, status)
 	}
-	remotes := differentiateRemotes(members, status)
 	return &BootstrappedCluster{
 		Cluster: cl,
 		Remotes: remotes,

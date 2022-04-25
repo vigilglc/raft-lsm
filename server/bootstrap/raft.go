@@ -9,6 +9,7 @@ import (
 )
 
 type BootstrappedRaft struct {
+	newRaft    bool
 	raftConfig *raft.Config
 	peers      []raft.Peer
 }
@@ -26,9 +27,10 @@ func bootstrapRaft(cfg *config.ServerConfig, haveWAL bool, cl *cluster.Cluster,
 	memStorage *raft.MemoryStorage) (*BootstrappedRaft, error) {
 	lg := cfg.GetLogger()
 	btRaft := new(BootstrappedRaft)
+	btRaft.newRaft = !haveWAL
 	if !haveWAL && cfg.NewCluster {
 		for _, mem := range cl.GetMembers() {
-			ctx, err := json.Marshal(mem.ID)
+			ctx, err := json.Marshal(mem)
 			if err != nil {
 				lg.Error("failed to marshal member", zap.Error(err))
 				return nil, err
@@ -50,7 +52,7 @@ func bootstrapRaft(cfg *config.ServerConfig, haveWAL bool, cl *cluster.Cluster,
 }
 
 func (btRaft *BootstrappedRaft) StartRaft() raft.Node {
-	if len(btRaft.peers) != 0 {
+	if btRaft.newRaft {
 		return raft.StartNode(btRaft.raftConfig, btRaft.peers)
 	}
 	return raft.RestartNode(btRaft.raftConfig)

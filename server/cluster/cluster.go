@@ -176,14 +176,17 @@ func (cl *Cluster) RecoverMembers() error {
 
 type ConfChangeContext struct {
 	Member
-	Promote bool `json:"Promote"`
+	Promote bool `json:"Promote,omitempty"`
 }
 type ConfChangeResponse struct {
 	Members []*Member
 	Err     error
 }
 
-func (cl *Cluster) ValidateConfChange(cc *raftpb.ConfChange) (ccCtx *ConfChangeContext, err error) {
+func (cl *Cluster) ValidateConfChange(ai uint64, cc *raftpb.ConfChange) (ccCtx *ConfChangeContext, err error) {
+	if ai <= cl.be.AppliedIndex() {
+		return nil, ErrAlreayApplied
+	}
 	defer syncutil.SchedLockers(cl.rwmu.RLocker())()
 	members, err := cl.membersFromBackend()
 	if err != nil {

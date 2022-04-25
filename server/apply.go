@@ -77,7 +77,10 @@ func (s *Server) applySnapshot(snap raftpb.Snapshot) {
 }
 
 func (s *Server) applyCommittedEntries(ents []raftpb.Entry) {
-	ents = s.entries2Apply(ents)
+	ents = s.entries2Apply(ents, atomic.LoadUint64(&s.appliedIndex))
+	defer func() {
+		atomic.AddUint64(&s.appliedIndex, uint64(len(ents)))
+	}()
 	if len(ents) == 0 {
 		return
 	}
@@ -127,7 +130,10 @@ func (s *Server) applyCommittedEntries(ents []raftpb.Entry) {
 }
 
 func (s *Server) applyConfChange(index uint64, cc *raftpb.ConfChange) (removeSelf bool, err error) {
-	ccCtx, err := s.cluster.ValidateConfChange(cc)
+	ccCtx, err := s.cluster.ValidateConfChange(index, cc)
+	if err == cluster.ErrAlreayApplied {
+		err = nil
+	}
 	if err != nil {
 		cc.NodeID = raft.None
 		s.raftNode.ApplyConfChange(cc)
@@ -138,6 +144,9 @@ func (s *Server) applyConfChange(index uint64, cc *raftpb.ConfChange) (removeSel
 		return false, err
 	}
 	confState := s.raftNode.ApplyConfChange(cc)
+	if ccCtx == nil {
+		return
+	}
 	localMem := s.cluster.GetLocalMember()
 	switch cc.Type {
 	case raftpb.ConfChangeAddNode, raftpb.ConfChangeAddLearnerNode:
@@ -159,11 +168,10 @@ func (s *Server) applyConfChange(index uint64, cc *raftpb.ConfChange) (removeSel
 	return
 }
 
-func (s *Server) entries2Apply(ents []raftpb.Entry) []raftpb.Entry {
+func (s *Server) entries2Apply(ents []raftpb.Entry, appliedIndex uint64) []raftpb.Entry {
 	if len(ents) == 0 {
 		return nil
 	}
-	appliedIndex := s.backend.AppliedIndex()
 	if ents[0].Index > appliedIndex+1 {
 		s.lg.Panic("unexpected committed entry index",
 			zap.Uint64("current-applied-index", appliedIndex),
