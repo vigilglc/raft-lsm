@@ -54,9 +54,6 @@ func Validate(cfg *ServerConfig) error {
 	}
 	if cfg.NewCluster {
 		var err = fmt.Errorf("server config: peer addr info not supplied")
-		if len(cfg.PeerAddrInfos) == 0 {
-			return err
-		}
 		for _, pi := range cfg.PeerAddrInfos {
 			if cluster.AddInfoEmpty(pi) {
 				return fmt.Errorf("server config: %v", err)

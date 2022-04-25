@@ -16,7 +16,7 @@ func (addr *AddrInfo) ServiceAddress() string {
 }
 
 func (addr *AddrInfo) RaftAddress() string {
-	return fmt.Sprintf("%s:%d", addr.Host, addr.RaftPort)
+	return fmt.Sprintf("unix://%s:%d", addr.Host, addr.RaftPort)
 }
 
 func AddInfoEmpty(info AddrInfo) bool {
