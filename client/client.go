@@ -6,6 +6,7 @@ import (
 	"github.com/vigilglc/raft-lsm/server/api/rpcpb"
 	"github.com/vigilglc/raft-lsm/server/utils/syncutil"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"sync"
 )
 
@@ -139,7 +140,7 @@ func (rc *rpcClient) Reset() error {
 			return err
 		}
 	}
-	rc.conn, err = grpc.DialContext(rc.ctx, rc.host)
+	rc.conn, err = grpc.DialContext(rc.ctx, rc.host, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}

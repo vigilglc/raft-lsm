@@ -41,6 +41,7 @@ func (s *Server) linearizableReadIndexLoop() {
 			index, err := s.requestReadIndex(ctx, reqID)
 			if err != nil {
 				oldSV.Notify(err)
+				return
 			}
 			select {
 			case <-s.timelineNtf.Wait(index):
