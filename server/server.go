@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"github.com/vigilglc/raft-lsm/server/backend"
 	"github.com/vigilglc/raft-lsm/server/bootstrap"
 	"github.com/vigilglc/raft-lsm/server/cluster"
@@ -19,6 +20,7 @@ import (
 	"go.etcd.io/etcd/server/v3/etcdserver/api/v2http/httptypes"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/v2stats"
 	"go.uber.org/zap"
+	"net"
 	"net/http"
 	"strconv"
 	"sync/atomic"
@@ -166,7 +168,6 @@ func (s *Server) run() {
 		if err := s.walStorage.Close(); err != nil {
 			s.lg.Error("failed to close wal storage", zap.Error(err))
 		}
-		s.transport.Stop()
 	}()
 	s.raftNode.Start(raftn.DataBridge{
 		SetLead: func(lead uint64) {
@@ -182,7 +183,7 @@ func (s *Server) run() {
 			}
 		},
 	})
-
+	go func() { s.serverRaft() }()
 	for true {
 		select {
 		case ap := <-s.raftNode.ApplyPatchC():
@@ -200,6 +201,17 @@ func (s *Server) run() {
 			return
 		}
 	}
+}
+
+func (s *Server) serverRaft() {
+	localMem := s.cluster.GetLocalMember()
+	addr := fmt.Sprintf("%v:%v", localMem.Host, localMem.RaftPort)
+	ls, err := net.Listen("tcp", addr)
+	if err != nil {
+		s.errorC <- err
+	}
+	err = (&http.Server{Handler: s.transport.Handler()}).Serve(ls)
+	s.errorC <- err
 }
 
 // region rafthttp.Raft implementation

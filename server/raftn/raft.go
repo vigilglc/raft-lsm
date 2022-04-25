@@ -36,9 +36,15 @@ func NewRaftNode(
 		lg = zap.NewExample()
 	}
 	r := &RaftNode{
-		lg: lg, oneTick: oneTick,
+		lg:   lg,
 		Node: node, transport: transport,
 		memStorage: memStorage, walStorage: walStorage,
+		oneTick: oneTick,
+		// ch
+		stopped:     make(chan struct{}),
+		done:        make(chan struct{}),
+		applyPatchC: make(chan *ApplyPatch, 1),
+		readStatesC: make(chan []raft.ReadState, 1),
 	}
 	raft.SetLogger(&ZapRaftLogger{lg.Sugar()})
 	r.ticker = time.NewTicker(oneTick)

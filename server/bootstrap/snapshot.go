@@ -20,7 +20,7 @@ func bootstrapSnapshot(cfg *config.ServerConfig, haveWAL bool) (snapshotter *sna
 			)
 		}
 		snapshot, err = snapshotter.LoadNewestAvailable(walSnaps)
-		if err != nil {
+		if err != nil && err != snap.ErrNoSnapshot {
 			lg.Fatal("failed to load newest available snapshot", zap.Error(err))
 		}
 	}
