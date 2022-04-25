@@ -4,6 +4,7 @@
 
 # User-specific stuff
 .idea/**
+*.xml
 
 ### Go template
 # Binaries for programs and plugins
