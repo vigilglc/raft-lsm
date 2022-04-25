@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"go.etcd.io/etcd/raft/v3"
 	"go.uber.org/zap"
 	"time"
@@ -14,7 +15,13 @@ func (s *Server) linearizableReadNotify(ctx context.Context) error {
 	})
 	select {
 	case <-sharedV.Wait():
-		return sharedV.Value().(error)
+		if sharedV.Value() == nil {
+			return nil
+		} else if err, ok := sharedV.Value().(error); ok {
+			return err
+		}
+		s.lg.Error("linearizable: unknown value", zap.Any("value", sharedV.Value()))
+		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-s.stopped:
@@ -43,6 +50,7 @@ func (s *Server) linearizableReadIndexLoop() {
 				oldSV.Notify(err)
 				return
 			}
+			s.lg.Debug(fmt.Sprintf("wait for %v applied", index))
 			select {
 			case <-s.timelineNtf.Wait(index):
 				oldSV.Notify(nil)
@@ -90,7 +98,6 @@ func (s *Server) requestReadIndex(ctx context.Context, reqID uint64) (index uint
 			if err != nil {
 				return 0, err
 			}
-			retryTimer.Reset(readIndexRetryTime)
 		case i := <-indexCh:
 			if i == nil {
 				return 0, ErrTimeout

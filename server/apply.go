@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	api "github.com/vigilglc/raft-lsm/server/api/rpcpb"
 	"github.com/vigilglc/raft-lsm/server/cluster"
 	"github.com/vigilglc/raft-lsm/server/raftn"
@@ -25,6 +26,7 @@ func (s *Server) applyAll(patch *raftn.ApplyPatch) {
 
 	appliedIndex, confState := s.backend.AppliedIndex(), s.backend.CurrConfState()
 	s.timelineNtf.Notify(appliedIndex)
+	s.lg.Debug(fmt.Sprintf("%v has been applied", appliedIndex))
 
 	s.tryTakeSnapshot(appliedIndex, &confState)
 	if len(patch.SnapMsgs) != 0 {

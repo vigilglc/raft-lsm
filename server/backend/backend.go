@@ -187,9 +187,6 @@ func (be *backend) Del(ai uint64, key string) error {
 }
 
 func (be *backend) Write(batch *Batch) error {
-	if len(batch.ents) == 0 {
-		return nil
-	}
 	defer syncutil.SchedLockers(be.dbRwmu.RLocker())()
 	be.aiRwmu.RLock()
 	if be.appliedIndex >= batch.appliedIndex {
