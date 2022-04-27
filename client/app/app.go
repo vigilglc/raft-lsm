@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	grb "github.com/desertbit/grumble"
 	"github.com/vigilglc/raft-lsm/server/api/rpcpb"
 	"github.com/vigilglc/raft-lsm/server/backend/kvpb"
@@ -413,7 +414,11 @@ var (
 				return nil
 			}
 			_, _ = c.App.Println("success")
-			_, _ = c.App.Println(status)
+			_, _ = c.App.Println(fmt.Sprintf("Cluster ID: %v, Cluster Name: %v", status.ID, status.Name))
+			for _, mem := range status.Members {
+				_, _ = c.App.Println(fmt.Sprintf("%+v", mem))
+			}
+			_, _ = c.App.Println(fmt.Sprintf("%+v", status.RemovedIDs))
 			return nil
 		},
 	}
@@ -440,7 +445,13 @@ var (
 				return nil
 			}
 			_, _ = c.App.Println("success")
-			_, _ = c.App.Println(status)
+			_, _ = c.App.Println(fmt.Sprintf(
+				"local ID: %v, local State: %v, local Term: %v, local Lead: %v, AppliedIndex: %v, CommittedIndex: %v",
+				status.NodeID, status.RaftState, status.Term, status.Lead, status.AppliedIndex, status.CommittedIndex,
+			))
+			for _, pg := range status.Progresses {
+				_, _ = c.App.Println(fmt.Sprintf("%+v", pg))
+			}
 			return nil
 		},
 	}
