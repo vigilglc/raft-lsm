@@ -73,7 +73,7 @@ func (s *Server) applySnapshot(snap raftpb.Snapshot) {
 		if member.ID == s.cluster.GetLocalMember().ID {
 			continue
 		}
-		s.transport.AddPeer(types.ID(member.ID), []string{member.AddrInfo.RaftAddress()})
+		s.transport.AddPeer(types.ID(member.ID), []string{member.AddrInfo.HttpRaftAddress()})
 	}
 	s.lg.Info("recovered transport peers")
 }
@@ -157,7 +157,7 @@ func (s *Server) applyConfChange(index uint64, cc *raftpb.ConfChange) (removeSel
 		} else {
 			s.cluster.AddMember(index, confState, &ccCtx.Member)
 			if localMem.ID != cc.NodeID {
-				s.transport.AddPeer(types.ID(cc.NodeID), []string{ccCtx.Member.RaftAddress()})
+				s.transport.AddPeer(types.ID(cc.NodeID), []string{ccCtx.Member.HttpRaftAddress()})
 			}
 		}
 	case raftpb.ConfChangeRemoveNode:

@@ -9,6 +9,7 @@ import (
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.uber.org/zap"
+	"sort"
 	"sync"
 )
 
@@ -283,6 +284,9 @@ func (b *Builder) AddMembers(addrInfos ...AddrInfo) *Builder {
 }
 
 func computeClusterID(members []*Member) uint64 {
+	sort.Slice(members, func(i, j int) bool {
+		return members[i].ID < members[j].ID
+	})
 	var data = make([]byte, 0, len(members)*8)
 	var buf = make([]byte, 8)
 	for _, mem := range members {

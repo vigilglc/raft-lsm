@@ -106,10 +106,10 @@ func NewServer(cfg *config.ServerConfig) *Server {
 		leaderChangeNtf:    ntfyutil.NewCyclicNotifier(),
 		readIndexSharedNtf: ntfyutil.NewSharedVEmitter(),
 	}
-	localURLs, err := types.NewURLs([]string{cfg.LocalAddrInfo.RaftAddress()})
+	localURLs, err := types.NewURLs([]string{cfg.LocalAddrInfo.HttpRaftAddress()})
 	if err != nil {
 		lg.Panic("failed to parse raft URL",
-			zap.String("raft-address", cfg.LocalAddrInfo.RaftAddress()), zap.Error(err),
+			zap.String("raft-address", cfg.LocalAddrInfo.HttpRaftAddress()), zap.Error(err),
 		)
 	}
 	srv.transport = &rafthttp.Transport{
@@ -129,12 +129,12 @@ func NewServer(cfg *config.ServerConfig) *Server {
 	}
 	for _, rmt := range btSrv.BootstrappedCluster.Remotes {
 		if rmt.ID != uintID && rmt.ID != raft.None {
-			srv.transport.AddRemote(types.ID(rmt.ID), []string{rmt.RaftAddress()})
+			srv.transport.AddRemote(types.ID(rmt.ID), []string{rmt.HttpRaftAddress()})
 		}
 	}
 	for _, mem := range cl.GetMembers() {
 		if mem.ID != uintID && mem.ID != raft.None {
-			srv.transport.AddPeer(types.ID(mem.ID), []string{mem.RaftAddress()})
+			srv.transport.AddPeer(types.ID(mem.ID), []string{mem.HttpRaftAddress()})
 		}
 	}
 	srv.raftNode = raftn.NewRaftNode(lg,
