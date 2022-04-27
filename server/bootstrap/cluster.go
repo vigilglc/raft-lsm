@@ -96,14 +96,23 @@ func bootstrapClusterWithoutWAL(cfg *config.ServerConfig, be backend.Backend) (b
 	}
 	var remotes []*cluster.Member
 	members := cl.GetMembers()
-	if !cfg.NewCluster && len(members) > 1 {
+	if !cfg.NewCluster {
+		if len(members) <= 1 {
+			return nil, fmt.Errorf("bootstrap cluster: not sufficient peers for new node joning old cluster")
+		}
 		status, err := fetchRemoteClusterStatus(cfg, localMem, members)
+		if err != nil {
+			return nil, err
+		}
+		cl, err = cluster.NewClusterBuilder(lg, cfg.ClusterName, be).
+			AddMember(cfg.LocalAddrInfo).
+			SetLocalMember(localMem.ID).Finish()
 		if err != nil {
 			return nil, err
 		}
 		cl.SetClusterName(status.Name)
 		cl.SetClusterID(status.ID)
-		remotes = differentiateRemotes(members, status)
+		remotes = differentiateRemotes(cl.GetMembers(), status)
 	}
 	return &BootstrappedCluster{
 		Cluster: cl,

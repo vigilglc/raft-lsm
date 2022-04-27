@@ -9,9 +9,9 @@ import (
 )
 
 type BootstrappedRaft struct {
-	newRaft    bool
-	raftConfig *raft.Config
-	peers      []raft.Peer
+	startWithPeers bool
+	raftConfig     *raft.Config
+	peers          []raft.Peer
 }
 
 const (
@@ -27,8 +27,8 @@ func bootstrapRaft(cfg *config.ServerConfig, haveWAL bool, cl *cluster.Cluster,
 	memStorage *raft.MemoryStorage) (*BootstrappedRaft, error) {
 	lg := cfg.GetLogger()
 	btRaft := new(BootstrappedRaft)
-	btRaft.newRaft = !haveWAL
-	if btRaft.newRaft {
+	btRaft.startWithPeers = !haveWAL && cfg.NewCluster
+	if btRaft.startWithPeers {
 		for _, mem := range cl.GetMembers() {
 			ctx, err := json.Marshal(mem)
 			if err != nil {
@@ -52,7 +52,7 @@ func bootstrapRaft(cfg *config.ServerConfig, haveWAL bool, cl *cluster.Cluster,
 }
 
 func (btRaft *BootstrappedRaft) StartRaft() raft.Node {
-	if btRaft.newRaft {
+	if btRaft.startWithPeers {
 		return raft.StartNode(btRaft.raftConfig, btRaft.peers)
 	}
 	return raft.RestartNode(btRaft.raftConfig)

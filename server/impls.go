@@ -234,7 +234,7 @@ func tryConvertUint32To16(n uint32) (uint16, bool) {
 func (s *Server) PromoteMember(ctx context.Context, request *api.PromoteMemberRequest) (resp *api.PromoteMemberResponse, err error) {
 	resp = new(api.PromoteMemberResponse)
 	mem := &cluster.Member{ID: request.NodeID}
-	ccCtx := cluster.ConfChangeContext{Member: *mem}
+	ccCtx := cluster.ConfChangeContext{Member: *mem, Promote: true}
 	data, err := json.Marshal(ccCtx)
 	if err != nil {
 		return resp, err

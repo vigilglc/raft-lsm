@@ -214,7 +214,7 @@ func (cl *Cluster) ValidateConfChange(ai uint64, cc *raftpb.ConfChange) (ccCtx *
 	case raftpb.ConfChangeAddNode, raftpb.ConfChangeAddLearnerNode:
 		if ccCtx.Promote {
 			if _, ok := members[nodeID]; !ok {
-				return ccCtx, ErrIDRemoved
+				return ccCtx, ErrIDNotExists
 			}
 			if !members[nodeID].IsLearner {
 				return ccCtx, ErrNotLearner
