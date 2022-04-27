@@ -122,8 +122,8 @@ func bootstrapExistingClusterWithWAL(cfg *config.ServerConfig, meta *walMeta, be
 	if err != nil {
 		return nil, err
 	}
-	cl.SetClusterName(meta.clusterName)
-	cl.SetClusterID(meta.clusterID)
+	cl.SetClusterName(meta.ClusterName)
+	cl.SetClusterID(meta.ClusterID)
 	if err := cl.RecoverMembers(); err != nil {
 		return nil, err
 	}

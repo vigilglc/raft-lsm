@@ -21,9 +21,9 @@ type bootstrappedWAL struct {
 }
 
 type walMeta struct {
-	clusterName string
-	clusterID   uint64
-	localNodeID uint64
+	ClusterName string
+	ClusterID   uint64
+	LocalNodeID uint64
 }
 
 func encodeWalMeta(wm walMeta) ([]byte, error) {
@@ -111,7 +111,7 @@ func (btWAL *bootstrappedWAL) createWAL(cfg *config.ServerConfig, clusterName st
 	if btWAL.wal != nil {
 		return nil
 	}
-	walMeta := walMeta{clusterName: clusterName, clusterID: clusterID, localNodeID: nodeID}
+	walMeta := walMeta{ClusterName: clusterName, ClusterID: clusterID, LocalNodeID: nodeID}
 	wmDat, err := encodeWalMeta(walMeta)
 	if err != nil {
 		return err
