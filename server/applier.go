@@ -44,16 +44,19 @@ func (ba *backendApplier) Apply(index uint64, req *api.InternalRequest) (ret *Ap
 }
 
 func (ba *backendApplier) Put(index uint64, req *api.PutRequest) (resp *api.PutResponse, err error) {
+	resp = new(api.PutResponse)
 	err = ba.be.Put(index, req.KeyVal.Key, req.KeyVal.Val)
 	return
 }
 
 func (ba *backendApplier) Del(index uint64, req *api.DelRequest) (resp *api.DelResponse, err error) {
+	resp = new(api.DelResponse)
 	err = ba.be.Del(index, req.Key)
 	return
 }
 
 func (ba *backendApplier) Write(index uint64, req *api.WriteRequest) (resp *api.WriteResponse, err error) {
+	resp = new(api.WriteResponse)
 	builder := backend.NewBatchBuilder().AppliedIndex(index)
 	for _, e := range req.Batch {
 		if e.OP == api.BatchEntry_PUT {

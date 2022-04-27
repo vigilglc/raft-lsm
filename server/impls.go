@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/gogo/protobuf/proto"
 	json "github.com/json-iterator/go"
+	"github.com/syndtr/goleveldb/leveldb"
 	api "github.com/vigilglc/raft-lsm/server/api/rpcpb"
 	"github.com/vigilglc/raft-lsm/server/backend"
 	"github.com/vigilglc/raft-lsm/server/backend/kvpb"
@@ -47,7 +48,7 @@ func (s *Server) doInternalRequest(ctx context.Context, req api.InternalRequest)
 
 func (s *Server) Get(ctx context.Context, request *api.GetRequest) (resp *api.GetResponse, err error) {
 	resp = new(api.GetResponse)
-	if backend.ValidateKey(request.Key) {
+	if !backend.ValidateKey(request.Key) {
 		return resp, backend.ErrInvalidKey
 	}
 	ctx, cancel := context.WithTimeout(ctx, s.Config.GetRequestTimeout())
@@ -58,7 +59,7 @@ func (s *Server) Get(ctx context.Context, request *api.GetRequest) (resp *api.Ge
 		}
 	}
 	resp.Val, err = s.backend.Get(request.Key)
-	if err != nil {
+	if err != nil && err != leveldb.ErrNotFound {
 		err = ErrInternalServer
 	}
 	return
@@ -66,7 +67,7 @@ func (s *Server) Get(ctx context.Context, request *api.GetRequest) (resp *api.Ge
 
 func (s *Server) Put(ctx context.Context, request *api.PutRequest) (resp *api.PutResponse, err error) {
 	resp = new(api.PutResponse)
-	if backend.ValidateKey(request.KeyVal.Key) {
+	if !backend.ValidateKey(request.KeyVal.Key) {
 		return resp, backend.ErrInvalidKey
 	}
 	msg, err := s.doInternalRequest(ctx, api.InternalRequest{Put: request})
@@ -79,7 +80,7 @@ func (s *Server) Put(ctx context.Context, request *api.PutRequest) (resp *api.Pu
 
 func (s *Server) Del(ctx context.Context, request *api.DelRequest) (resp *api.DelResponse, err error) {
 	resp = new(api.DelResponse)
-	if backend.ValidateKey(request.Key) {
+	if !backend.ValidateKey(request.Key) {
 		return resp, backend.ErrInvalidKey
 	}
 	msg, err := s.doInternalRequest(ctx, api.InternalRequest{Del: request})
@@ -93,7 +94,7 @@ func (s *Server) Del(ctx context.Context, request *api.DelRequest) (resp *api.De
 func (s *Server) Write(ctx context.Context, request *api.WriteRequest) (resp *api.WriteResponse, err error) {
 	resp = new(api.WriteResponse)
 	for _, ent := range request.Batch {
-		if backend.ValidateKey(ent.KeyVal.Key) {
+		if !backend.ValidateKey(ent.KeyVal.Key) {
 			return resp, backend.ErrInvalidKey
 		}
 	}
