@@ -20,9 +20,9 @@ type BootstrappedCluster struct {
 
 func bootstrapCluster(cfg *config.ServerConfig, btWAL *bootstrappedWAL, be backend.Backend) (btCl *BootstrappedCluster, err error) {
 	switch {
-	case !btWAL.haveWAL: // newly or existing launched cluster, new node to join
-		return bootstrapClusterWithoutWAL(cfg, btWAL, be)
-	case btWAL.haveWAL: // existing cluster, e.g. old node to restart
+	case btWAL.wal == nil: // newly or existing launched cluster, new node to join
+		return bootstrapClusterWithoutWAL(cfg, be)
+	case btWAL.wal != nil: // existing cluster, e.g. old node to restart
 		return bootstrapExistingClusterWithWAL(cfg, btWAL.walMeta, be)
 	default:
 		return nil, errors.New("unsupported bootstrap config")
@@ -85,7 +85,7 @@ func differentiateRemotes(localMems []*cluster.Member, status *rpcpb.ClusterStat
 	return remotes
 }
 
-func bootstrapClusterWithoutWAL(cfg *config.ServerConfig, btWAL *bootstrappedWAL, be backend.Backend) (btCl *BootstrappedCluster, err error) {
+func bootstrapClusterWithoutWAL(cfg *config.ServerConfig, be backend.Backend) (btCl *BootstrappedCluster, err error) {
 	lg := cfg.GetLogger()
 	localMem := cluster.NewMember(cfg.ClusterName, cfg.LocalAddrInfo, false)
 	cl, err := cluster.NewClusterBuilder(lg, cfg.ClusterName, be).
@@ -105,10 +105,6 @@ func bootstrapClusterWithoutWAL(cfg *config.ServerConfig, btWAL *bootstrappedWAL
 		cl.SetClusterID(status.ID)
 		remotes = differentiateRemotes(members, status)
 	}
-	if err := btWAL.createWAL(cfg, cl.GetClusterName(), cl.GetClusterID(), localMem.ID); err != nil {
-		lg.Error("failed to create WAL", zap.Error(err))
-		return nil, err
-	}
 	return &BootstrappedCluster{
 		Cluster: cl,
 		Remotes: remotes,
@@ -127,17 +123,8 @@ func bootstrapExistingClusterWithWAL(cfg *config.ServerConfig, meta *walMeta, be
 	if err := cl.RecoverMembers(); err != nil {
 		return nil, err
 	}
-	var remotes []*cluster.Member
-	members := cl.GetMembers()
-	if len(members) > 1 {
-		status, err := fetchRemoteClusterStatus(cfg, localMem, members)
-		if err != nil {
-			return nil, err
-		}
-		remotes = differentiateRemotes(members, status)
-	}
 	return &BootstrappedCluster{
 		Cluster: cl,
-		Remotes: remotes,
+		Remotes: nil,
 	}, err
 }

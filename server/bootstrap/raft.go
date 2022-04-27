@@ -28,7 +28,7 @@ func bootstrapRaft(cfg *config.ServerConfig, haveWAL bool, cl *cluster.Cluster,
 	lg := cfg.GetLogger()
 	btRaft := new(BootstrappedRaft)
 	btRaft.newRaft = !haveWAL
-	if !haveWAL && cfg.NewCluster {
+	if btRaft.newRaft {
 		for _, mem := range cl.GetMembers() {
 			ctx, err := json.Marshal(mem)
 			if err != nil {

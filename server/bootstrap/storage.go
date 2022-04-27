@@ -12,7 +12,6 @@ import (
 )
 
 type bootstrappedWAL struct {
-	haveWAL   bool
 	wal       *wal.WAL
 	snap      *raftpb.Snapshot
 	walMeta   *walMeta
@@ -41,7 +40,6 @@ func bootstrapWAL(cfg *config.ServerConfig, haveWAL bool, snap *raftpb.Snapshot)
 	cfg.MakeWALDir()
 	if !haveWAL {
 		return &bootstrappedWAL{
-			haveWAL: haveWAL,
 			wal:     nil,
 			walMeta: nil,
 		}, nil
@@ -80,7 +78,6 @@ func bootstrapWAL(cfg *config.ServerConfig, haveWAL bool, snap *raftpb.Snapshot)
 			return nil, err
 		}
 		return &bootstrappedWAL{
-			haveWAL:   haveWAL,
 			wal:       w,
 			snap:      snap,
 			walMeta:   walMeta,
