@@ -165,6 +165,7 @@ func (s *Server) applyConfChange(index uint64, cc *raftpb.ConfChange) (removeSel
 	case raftpb.ConfChangeRemoveNode:
 		s.cluster.RemoveMember(index, confState, cc.NodeID)
 		if localMem.ID == cc.NodeID {
+			s.transport.RemoveAllPeers()
 			return true, err
 		}
 		s.transport.RemovePeer(types.ID(cc.NodeID))

@@ -66,7 +66,6 @@ type ApplyPatch struct {
 
 func (r *RaftNode) Start(bridge DataBridge) {
 	var onStop = func() {
-		r.Stop()
 		r.ticker.Stop()
 		r.transport.Stop()
 		if err := r.walStorage.Close(); err != nil {
