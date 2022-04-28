@@ -342,7 +342,7 @@ func (be *backend) ReceiveSnapshot(ai uint64, rc io.ReadCloser) (err error) {
 		return err
 	}
 	defer syncutil.SchedLockers(&be.dbRwmu, &be.aiRwmu, &be.cfstRwmu)()
-	appliedIndex, err := readInAppliedIndex(be.db)
+	appliedIndex, err := readInAppliedIndex(tempDB)
 	if err != nil {
 		be.lg.Error("failed to read appliedIndex in", zap.Error(err))
 		_ = tempDB.Close()

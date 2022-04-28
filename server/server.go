@@ -76,15 +76,18 @@ func NewServer(cfg *config.ServerConfig) *Server {
 	serverStats := v2stats.NewServerStats(cfg.LocalAddrInfo.Name, strID)
 	leaderStats := v2stats.NewLeaderStats(lg, strID)
 
+	var appliedIndex, _ = btSrv.MemStorage.FirstIndex()
+	appliedIndex--
 	srv := &Server{
 		// stats
 		serverStats: serverStats,
 		leaderStats: leaderStats,
 		// core
-		lg:      lg,
-		Config:  cfg,
-		applier: NewBackendApplier(lg, btSrv.Backend),
-		cluster: cl,
+		lg:           lg,
+		Config:       cfg,
+		applier:      NewBackendApplier(lg, btSrv.Backend),
+		appliedIndex: appliedIndex,
+		cluster:      cl,
 		// @raftNode:
 		backend:     btSrv.Backend,
 		memStorage:  btSrv.MemStorage,

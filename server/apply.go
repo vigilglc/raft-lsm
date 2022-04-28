@@ -11,6 +11,7 @@ import (
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
 	"go.uber.org/zap"
+	"io"
 	"os"
 	"sync/atomic"
 	"time"
@@ -76,6 +77,7 @@ func (s *Server) applySnapshot(snap raftpb.Snapshot) {
 		s.transport.AddPeer(types.ID(member.ID), []string{member.AddrInfo.HttpRaftAddress()})
 	}
 	s.lg.Info("recovered transport peers")
+	atomic.StoreUint64(&s.appliedIndex, snap.Metadata.Index)
 }
 
 func (s *Server) applyCommittedEntries(ents []raftpb.Entry) {
@@ -186,6 +188,7 @@ func (s *Server) entries2Apply(ents []raftpb.Entry, appliedIndex uint64) []raftp
 
 func (s *Server) tryTakeSnapshot(index uint64, confState *raftpb.ConfState) {
 	snapIndex, _ := s.memStorage.FirstIndex()
+	snapIndex--
 	if index-snapIndex < s.Config.SnapshotThreshold {
 		return
 	}
@@ -241,9 +244,15 @@ func (s *Server) createSnapMsgs(index uint64, confState raftpb.ConfState, msgs [
 				Term:      term,
 			},
 		}
-		ret = append(ret, *snap.NewMessage(m, rc, size))
+		ret = append(ret, newSnapMessage(m, rc, size))
 	}
 	return ret
+}
+
+func newSnapMessage(msg raftpb.Message, rc io.ReadCloser, size int64) snap.Message {
+	sm := snap.NewMessage(msg, nil, size)
+	sm.ReadCloser = rc
+	return *sm
 }
 
 func (s *Server) sendSnapshot(msgs []snap.Message) {
