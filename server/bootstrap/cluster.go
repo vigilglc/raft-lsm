@@ -123,7 +123,8 @@ func bootstrapClusterWithoutWAL(cfg *config.ServerConfig, be backend.Backend) (b
 func bootstrapExistingClusterWithWAL(cfg *config.ServerConfig, meta *walMeta, be backend.Backend) (btCl *BootstrappedCluster, err error) {
 	lg := cfg.GetLogger()
 	localMem := cluster.NewMember(cfg.ClusterName, cfg.LocalAddrInfo, false)
-	cl, err := cluster.NewClusterBuilder(lg, cfg.ClusterName, be).SetLocalMember(localMem.ID).Finish()
+	cl, err := cluster.NewClusterBuilder(lg, cfg.ClusterName, be).
+		AddMember(cfg.LocalAddrInfo).SetLocalMember(localMem.ID).Finish()
 	if err != nil {
 		return nil, err
 	}

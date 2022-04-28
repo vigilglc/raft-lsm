@@ -167,7 +167,11 @@ func (cl *Cluster) RecoverMembers() error {
 		cl.lg.Error("failed to recover removed member IDs from backend", zap.Error(err))
 		return err
 	}
+	localMem := cl.members[cl.localMemID]
 	cl.members, cl.removedIDs = members, removedIDs
+	if _, ok := cl.members[localMem.ID]; !ok {
+		cl.members[localMem.ID] = localMem
+	}
 	cl.lg.Info("recover members success",
 		zap.String("cluster-name", cl.name),
 		zap.Uint64("local-member-id", cl.localMemID),

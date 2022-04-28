@@ -69,11 +69,13 @@ func Bootstrap(cfg *config.ServerConfig) (srv *BootstrappedServer, berr error) {
 		lg.Error("failed to bootstrap raft", zap.Error(err))
 		return
 	}
-	if err := btWAL.createWAL(cfg, btCl.Cluster.GetClusterName(), btCl.Cluster.GetClusterID(),
-		btCl.Cluster.GetLocalMember().ID); err != nil {
-		setBerr(err)
-		lg.Error("failed to create WAL", zap.Error(err))
-		return
+	if !haveWAL {
+		if err := btWAL.createWAL(cfg, btCl.Cluster.GetClusterName(), btCl.Cluster.GetClusterID(),
+			btCl.Cluster.GetLocalMember().ID); err != nil {
+			setBerr(err)
+			lg.Error("failed to create WAL", zap.Error(err))
+			return
+		}
 	}
 	srv = &BootstrappedServer{
 		Snapshotter:         snapshotter,
