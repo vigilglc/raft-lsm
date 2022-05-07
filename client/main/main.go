@@ -104,7 +104,9 @@ func initApp(ctx context.Context,
 	app.SetExeRemoveMemberFunc(func(ID uint64) (members []*rpcpb.Member, err error) {
 		cli, release := balancer.Pick()
 		defer release()
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		resp, err := cli.RemoveMember(ctx, &rpcpb.RemoveMemberRequest{NodeID: ID})
+		defer cancel()
 		if resp != nil {
 			members = resp.Members
 		}

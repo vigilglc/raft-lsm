@@ -22,6 +22,7 @@ import (
 	"go.uber.org/zap"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -97,7 +98,6 @@ func NewServer(cfg *config.ServerConfig) *Server {
 		// channel...
 		readyC:         make(chan struct{}),
 		stopped:        make(chan struct{}),
-		done:           make(chan struct{}),
 		errorC:         make(chan error, 1),
 		readIndexWaitC: make(chan context.Context),
 		// req and resp
@@ -154,9 +154,7 @@ func (s *Server) Start() {
 }
 
 func (s *Server) Stop() {
-	close(s.stopped)
 	s.fw.Wait()
-	<-s.done
 }
 
 func (s *Server) run() {
@@ -169,9 +167,11 @@ func (s *Server) run() {
 		if err != nil {
 			s.lg.Error("failed to close backend", zap.Error(err))
 		}
-		if err := s.walStorage.Close(); err != nil {
-			s.lg.Error("failed to close wal storage", zap.Error(err))
-		}
+		close(s.stopped)
+		go func() {
+			s.fw.Wait()
+			os.Exit(0)
+		}()
 	}()
 	s.raftNode.Start(raftn.DataBridge{
 		SetLead: func(lead uint64) {

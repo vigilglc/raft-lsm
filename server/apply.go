@@ -123,7 +123,7 @@ func (s *Server) applyCommittedEntries(ents []raftpb.Entry) {
 		s.fw.Attach(func() {
 			select {
 			case <-s.stopped:
-			case <-time.After(10 * 100 * time.Millisecond):
+			case <-time.After(1 * time.Second):
 			}
 			select {
 			case s.errorC <- ErrRemoveSelf:
