@@ -76,6 +76,14 @@ func (ss *serviceServer) Range(rangeServer api.KVService_RangeServer) (err error
 	return
 }
 
+func (ss *serviceServer) LocalMember(ctx context.Context, req *api.LocalMemberRequest) (resp *api.LocalMemberResponse, err error) {
+	resp, err = ss.sv.LocalMember(ctx, req)
+	if err != nil {
+		ss.lg.Error("failed to process request", zap.Any("request", req), zap.Error(err))
+	}
+	return
+}
+
 func (ss *serviceServer) AddMember(ctx context.Context, req *api.AddMemberRequest) (resp *api.AddMemberResponse, err error) {
 	resp, err = ss.sv.AddMember(ctx, req)
 	if err != nil {

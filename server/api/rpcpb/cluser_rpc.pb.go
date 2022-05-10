@@ -111,6 +111,86 @@ func (m *Member) GetIsLearner() bool {
 	return false
 }
 
+type LocalMemberRequest struct {
+}
+
+func (m *LocalMemberRequest) Reset()         { *m = LocalMemberRequest{} }
+func (m *LocalMemberRequest) String() string { return proto.CompactTextString(m) }
+func (*LocalMemberRequest) ProtoMessage()    {}
+func (*LocalMemberRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9f88e8ad5aaf357f, []int{1}
+}
+func (m *LocalMemberRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *LocalMemberRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_LocalMemberRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *LocalMemberRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LocalMemberRequest.Merge(m, src)
+}
+func (m *LocalMemberRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *LocalMemberRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_LocalMemberRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_LocalMemberRequest proto.InternalMessageInfo
+
+type LocalMemberResponse struct {
+	Member *Member `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
+}
+
+func (m *LocalMemberResponse) Reset()         { *m = LocalMemberResponse{} }
+func (m *LocalMemberResponse) String() string { return proto.CompactTextString(m) }
+func (*LocalMemberResponse) ProtoMessage()    {}
+func (*LocalMemberResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9f88e8ad5aaf357f, []int{2}
+}
+func (m *LocalMemberResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *LocalMemberResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_LocalMemberResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *LocalMemberResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LocalMemberResponse.Merge(m, src)
+}
+func (m *LocalMemberResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *LocalMemberResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_LocalMemberResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_LocalMemberResponse proto.InternalMessageInfo
+
+func (m *LocalMemberResponse) GetMember() *Member {
+	if m != nil {
+		return m.Member
+	}
+	return nil
+}
+
 type AddMemberRequest struct {
 	Member *Member `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
 }
@@ -119,7 +199,7 @@ func (m *AddMemberRequest) Reset()         { *m = AddMemberRequest{} }
 func (m *AddMemberRequest) String() string { return proto.CompactTextString(m) }
 func (*AddMemberRequest) ProtoMessage()    {}
 func (*AddMemberRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9f88e8ad5aaf357f, []int{1}
+	return fileDescriptor_9f88e8ad5aaf357f, []int{3}
 }
 func (m *AddMemberRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -163,7 +243,7 @@ func (m *AddMemberResponse) Reset()         { *m = AddMemberResponse{} }
 func (m *AddMemberResponse) String() string { return proto.CompactTextString(m) }
 func (*AddMemberResponse) ProtoMessage()    {}
 func (*AddMemberResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9f88e8ad5aaf357f, []int{2}
+	return fileDescriptor_9f88e8ad5aaf357f, []int{4}
 }
 func (m *AddMemberResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -207,7 +287,7 @@ func (m *PromoteMemberRequest) Reset()         { *m = PromoteMemberRequest{} }
 func (m *PromoteMemberRequest) String() string { return proto.CompactTextString(m) }
 func (*PromoteMemberRequest) ProtoMessage()    {}
 func (*PromoteMemberRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9f88e8ad5aaf357f, []int{3}
+	return fileDescriptor_9f88e8ad5aaf357f, []int{5}
 }
 func (m *PromoteMemberRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -251,7 +331,7 @@ func (m *PromoteMemberResponse) Reset()         { *m = PromoteMemberResponse{} }
 func (m *PromoteMemberResponse) String() string { return proto.CompactTextString(m) }
 func (*PromoteMemberResponse) ProtoMessage()    {}
 func (*PromoteMemberResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9f88e8ad5aaf357f, []int{4}
+	return fileDescriptor_9f88e8ad5aaf357f, []int{6}
 }
 func (m *PromoteMemberResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -295,7 +375,7 @@ func (m *RemoveMemberRequest) Reset()         { *m = RemoveMemberRequest{} }
 func (m *RemoveMemberRequest) String() string { return proto.CompactTextString(m) }
 func (*RemoveMemberRequest) ProtoMessage()    {}
 func (*RemoveMemberRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9f88e8ad5aaf357f, []int{5}
+	return fileDescriptor_9f88e8ad5aaf357f, []int{7}
 }
 func (m *RemoveMemberRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -339,7 +419,7 @@ func (m *RemoveMemberResponse) Reset()         { *m = RemoveMemberResponse{} }
 func (m *RemoveMemberResponse) String() string { return proto.CompactTextString(m) }
 func (*RemoveMemberResponse) ProtoMessage()    {}
 func (*RemoveMemberResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9f88e8ad5aaf357f, []int{6}
+	return fileDescriptor_9f88e8ad5aaf357f, []int{8}
 }
 func (m *RemoveMemberResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -383,7 +463,7 @@ func (m *ClusterStatusRequest) Reset()         { *m = ClusterStatusRequest{} }
 func (m *ClusterStatusRequest) String() string { return proto.CompactTextString(m) }
 func (*ClusterStatusRequest) ProtoMessage()    {}
 func (*ClusterStatusRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9f88e8ad5aaf357f, []int{7}
+	return fileDescriptor_9f88e8ad5aaf357f, []int{9}
 }
 func (m *ClusterStatusRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -430,7 +510,7 @@ func (m *ClusterStatusResponse) Reset()         { *m = ClusterStatusResponse{} }
 func (m *ClusterStatusResponse) String() string { return proto.CompactTextString(m) }
 func (*ClusterStatusResponse) ProtoMessage()    {}
 func (*ClusterStatusResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9f88e8ad5aaf357f, []int{8}
+	return fileDescriptor_9f88e8ad5aaf357f, []int{10}
 }
 func (m *ClusterStatusResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -489,6 +569,8 @@ func (m *ClusterStatusResponse) GetRemovedIDs() []uint64 {
 
 func init() {
 	proto.RegisterType((*Member)(nil), "rpcpb.Member")
+	proto.RegisterType((*LocalMemberRequest)(nil), "rpcpb.LocalMemberRequest")
+	proto.RegisterType((*LocalMemberResponse)(nil), "rpcpb.LocalMemberResponse")
 	proto.RegisterType((*AddMemberRequest)(nil), "rpcpb.AddMemberRequest")
 	proto.RegisterType((*AddMemberResponse)(nil), "rpcpb.AddMemberResponse")
 	proto.RegisterType((*PromoteMemberRequest)(nil), "rpcpb.PromoteMemberRequest")
@@ -502,37 +584,39 @@ func init() {
 func init() { proto.RegisterFile("cluser_rpc.proto", fileDescriptor_9f88e8ad5aaf357f) }
 
 var fileDescriptor_9f88e8ad5aaf357f = []byte{
-	// 481 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x54, 0x4d, 0x6e, 0xd3, 0x40,
-	0x14, 0xce, 0x24, 0xae, 0x69, 0x5e, 0x9b, 0xaa, 0x0c, 0x29, 0x8c, 0xdc, 0xca, 0xb2, 0x8c, 0x10,
-	0xde, 0xd4, 0x95, 0xca, 0x0a, 0x81, 0xf8, 0x8d, 0x84, 0x82, 0x40, 0xaa, 0xcc, 0x01, 0x90, 0xed,
-	0x4c, 0x53, 0x4b, 0xb6, 0xc7, 0xcc, 0x8c, 0xbb, 0x60, 0xcd, 0x01, 0x38, 0x00, 0x97, 0xe0, 0x16,
-	0x2c, 0xbb, 0x64, 0x89, 0x92, 0x83, 0x80, 0x3a, 0x9e, 0xb8, 0x76, 0x6a, 0xa1, 0x76, 0x37, 0xef,
-	0xfb, 0xde, 0xf3, 0xf7, 0xcd, 0x7c, 0x4f, 0x86, 0xdd, 0x38, 0x2d, 0x05, 0xe5, 0x9f, 0x79, 0x11,
-	0xfb, 0x05, 0x67, 0x92, 0xe1, 0x0d, 0x5e, 0xc4, 0x45, 0x64, 0x1d, 0xce, 0x13, 0x79, 0x56, 0x46,
-	0x7e, 0xcc, 0xb2, 0xa3, 0x39, 0x9b, 0xb3, 0x23, 0xc5, 0x46, 0xe5, 0xa9, 0xaa, 0x54, 0xa1, 0x4e,
-	0xd5, 0x94, 0xfb, 0x03, 0x81, 0xf9, 0x91, 0x66, 0x11, 0xe5, 0x78, 0x07, 0xfa, 0xd3, 0x09, 0x41,
-	0x0e, 0xf2, 0x8c, 0xa0, 0x3f, 0x9d, 0x60, 0x0c, 0x46, 0x1e, 0x66, 0x94, 0xf4, 0x1d, 0xe4, 0x0d,
-	0x03, 0x75, 0xbe, 0xc4, 0xce, 0x98, 0x90, 0x64, 0x50, 0x61, 0x97, 0x67, 0x6c, 0xc1, 0x26, 0x0f,
-	0x4f, 0xe5, 0x09, 0xe3, 0x92, 0x18, 0x0e, 0xf2, 0x46, 0x41, 0x5d, 0x63, 0x07, 0xb6, 0x04, 0xe5,
-	0xe7, 0x49, 0x4c, 0x15, 0xbd, 0xa1, 0xe8, 0x26, 0x84, 0x0f, 0x60, 0x98, 0x88, 0x0f, 0x34, 0xe4,
-	0x39, 0xe5, 0xc4, 0x74, 0x90, 0xb7, 0x19, 0x5c, 0x01, 0xee, 0x53, 0xd8, 0x7d, 0x3d, 0x9b, 0x55,
-	0x06, 0x03, 0xfa, 0xa5, 0xa4, 0x42, 0xe2, 0x47, 0x60, 0x66, 0x0a, 0x50, 0x5e, 0xb7, 0x8e, 0x47,
-	0xbe, 0xba, 0xb9, 0xaf, 0xbb, 0x34, 0xe9, 0x3e, 0x87, 0xbb, 0x8d, 0x51, 0x51, 0xb0, 0x5c, 0x50,
-	0xfc, 0x18, 0xee, 0x54, 0xb4, 0x20, 0xc8, 0x19, 0x5c, 0x1f, 0x5e, 0xb1, 0xae, 0x0f, 0xe3, 0x13,
-	0xce, 0x32, 0x26, 0x69, 0x5b, 0xfc, 0x3e, 0x98, 0x39, 0x9b, 0xd1, 0xfa, 0xa1, 0x74, 0xe5, 0xbe,
-	0x82, 0xbd, 0xb5, 0xfe, 0xdb, 0x2a, 0x1e, 0xc2, 0xbd, 0x80, 0x66, 0xec, 0xfc, 0x86, 0x82, 0x2f,
-	0x61, 0xdc, 0x6e, 0xbf, 0xad, 0xde, 0x33, 0x18, 0xbf, 0x4d, 0x4b, 0x21, 0x29, 0xff, 0x24, 0x43,
-	0x59, 0x8a, 0x95, 0xe0, 0x43, 0xd8, 0x4e, 0x93, 0x9c, 0x86, 0x3c, 0xf9, 0x1a, 0x46, 0x29, 0x25,
-	0x7f, 0x91, 0x0a, 0xa5, 0x05, 0xba, 0xdf, 0x10, 0xec, 0xad, 0x4d, 0x6b, 0xfd, 0x9b, 0x6c, 0x51,
-	0xc3, 0xe3, 0xe0, 0x7f, 0x1e, 0xb1, 0x0d, 0xc0, 0xd5, 0x25, 0x67, 0xd3, 0x89, 0x20, 0x86, 0x33,
-	0xf0, 0x8c, 0xa0, 0x81, 0x1c, 0xff, 0xec, 0xc3, 0xce, 0xca, 0x46, 0xb5, 0x53, 0xf8, 0x05, 0x0c,
-	0xeb, 0xd8, 0xf1, 0x03, 0xfd, 0xdd, 0xf5, 0x1d, 0xb2, 0xc8, 0x75, 0x42, 0xfb, 0x7f, 0x0f, 0xa3,
-	0x56, 0x90, 0x78, 0x5f, 0xb7, 0x76, 0xad, 0x83, 0x75, 0xd0, 0x4d, 0xea, 0x6f, 0xbd, 0x83, 0xed,
-	0x66, 0x46, 0xd8, 0xd2, 0xdd, 0x1d, 0x39, 0x5b, 0xfb, 0x9d, 0xdc, 0x95, 0xa9, 0xd6, 0x6b, 0xd7,
-	0xa6, 0xba, 0x12, 0xac, 0x4d, 0x75, 0x06, 0xf4, 0x86, 0xfc, 0x5a, 0xd8, 0xe8, 0x62, 0x61, 0xa3,
-	0x3f, 0x0b, 0x1b, 0x7d, 0x5f, 0xda, 0xbd, 0x8b, 0xa5, 0xdd, 0xfb, 0xbd, 0xb4, 0x7b, 0x91, 0xa9,
-	0x7e, 0x09, 0x4f, 0xfe, 0x05, 0x00, 0x00, 0xff, 0xff, 0xb6, 0xa0, 0xab, 0x95, 0x5c, 0x04, 0x00,
+	// 513 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x54, 0xcb, 0x6e, 0xd3, 0x40,
+	0x14, 0xed, 0x24, 0x69, 0x68, 0x6e, 0x9a, 0xaa, 0x4c, 0x53, 0x18, 0xdc, 0xca, 0xb2, 0x8c, 0x10,
+	0xde, 0xd4, 0x95, 0xca, 0x0a, 0x51, 0xf1, 0x8c, 0x84, 0x82, 0x8a, 0x54, 0x99, 0x0f, 0x40, 0xb6,
+	0x33, 0x4d, 0x2d, 0xd9, 0x1e, 0x33, 0x33, 0xee, 0x82, 0x35, 0x1f, 0xc0, 0x07, 0xf0, 0x41, 0x2c,
+	0xbb, 0x64, 0x89, 0x92, 0x8f, 0x60, 0x09, 0xea, 0x78, 0xe2, 0xda, 0x89, 0x85, 0xd2, 0xdd, 0xdc,
+	0x73, 0xee, 0x9d, 0x73, 0xc6, 0xf7, 0xc8, 0xb0, 0x1b, 0xc6, 0xb9, 0xa0, 0xfc, 0x33, 0xcf, 0x42,
+	0x37, 0xe3, 0x4c, 0x32, 0xbc, 0xc9, 0xb3, 0x30, 0x0b, 0x8c, 0xa3, 0x69, 0x24, 0x2f, 0xf3, 0xc0,
+	0x0d, 0x59, 0x72, 0x3c, 0x65, 0x53, 0x76, 0xac, 0xd8, 0x20, 0xbf, 0x50, 0x95, 0x2a, 0xd4, 0xa9,
+	0x98, 0xb2, 0x7f, 0x20, 0xe8, 0x7e, 0xa4, 0x49, 0x40, 0x39, 0xde, 0x81, 0xd6, 0x78, 0x44, 0x90,
+	0x85, 0x9c, 0x8e, 0xd7, 0x1a, 0x8f, 0x30, 0x86, 0x4e, 0xea, 0x27, 0x94, 0xb4, 0x2c, 0xe4, 0xf4,
+	0x3c, 0x75, 0xbe, 0xc1, 0x2e, 0x99, 0x90, 0xa4, 0x5d, 0x60, 0x37, 0x67, 0x6c, 0xc0, 0x16, 0xf7,
+	0x2f, 0xe4, 0x39, 0xe3, 0x92, 0x74, 0x2c, 0xe4, 0x0c, 0xbc, 0xb2, 0xc6, 0x16, 0xf4, 0x05, 0xe5,
+	0x57, 0x51, 0x48, 0x15, 0xbd, 0xa9, 0xe8, 0x2a, 0x84, 0x0f, 0xa1, 0x17, 0x89, 0x33, 0xea, 0xf3,
+	0x94, 0x72, 0xd2, 0xb5, 0x90, 0xb3, 0xe5, 0xdd, 0x02, 0xf6, 0x10, 0xf0, 0x19, 0x0b, 0xfd, 0xb8,
+	0xb0, 0xe8, 0xd1, 0x2f, 0x39, 0x15, 0xd2, 0x3e, 0x85, 0xbd, 0x1a, 0x2a, 0x32, 0x96, 0x0a, 0x8a,
+	0x9f, 0x40, 0x37, 0x51, 0x88, 0x7a, 0x44, 0xff, 0x64, 0xe0, 0xaa, 0x4f, 0xe2, 0xea, 0x36, 0x4d,
+	0xda, 0xcf, 0x61, 0xf7, 0xcd, 0x64, 0x52, 0xbb, 0x71, 0xdd, 0xd1, 0x53, 0xb8, 0x5f, 0x19, 0xd5,
+	0xb2, 0x4f, 0xe1, 0x5e, 0x41, 0x0b, 0x82, 0xac, 0xf6, 0xea, 0xf0, 0x82, 0xb5, 0x5d, 0x18, 0x9e,
+	0x73, 0x96, 0x30, 0x49, 0xeb, 0xe2, 0x0f, 0xa0, 0x9b, 0xb2, 0x09, 0x2d, 0x3f, 0xbe, 0xae, 0xec,
+	0xd7, 0xb0, 0xbf, 0xd4, 0x7f, 0x57, 0xc5, 0x23, 0xd8, 0xf3, 0x68, 0xc2, 0xae, 0xd6, 0x14, 0x7c,
+	0x05, 0xc3, 0x7a, 0xfb, 0x5d, 0xf5, 0x5e, 0xc0, 0xf0, 0x5d, 0x9c, 0x0b, 0x49, 0xf9, 0x27, 0xe9,
+	0xcb, 0x5c, 0x2c, 0x04, 0x1f, 0xc3, 0x76, 0x1c, 0xa5, 0xd4, 0xe7, 0xd1, 0x57, 0x3f, 0x88, 0x29,
+	0xf9, 0x8b, 0xd4, 0xa2, 0x6b, 0xa0, 0xfd, 0x0d, 0xc1, 0xfe, 0xd2, 0xb4, 0xd6, 0x5f, 0x27, 0x99,
+	0x15, 0x8f, 0xed, 0xff, 0x79, 0xc4, 0x26, 0x00, 0x57, 0x8f, 0x9c, 0x8c, 0x47, 0x82, 0x74, 0xac,
+	0xb6, 0xd3, 0xf1, 0x2a, 0xc8, 0xc9, 0x9f, 0x16, 0xec, 0x2c, 0x6c, 0x14, 0x39, 0xc5, 0x23, 0xe8,
+	0x57, 0xf2, 0x86, 0x1f, 0xe9, 0x9b, 0x57, 0x93, 0x69, 0x18, 0x4d, 0x94, 0x7e, 0xc5, 0x4b, 0xe8,
+	0x95, 0xe1, 0xc1, 0x0f, 0x75, 0xe3, 0x72, 0x12, 0x0d, 0xb2, 0x4a, 0xe8, 0xf9, 0x0f, 0x30, 0xa8,
+	0xc5, 0x01, 0x1f, 0xe8, 0xd6, 0xa6, 0x50, 0x19, 0x87, 0xcd, 0xa4, 0xbe, 0xeb, 0x3d, 0x6c, 0x57,
+	0x37, 0x8d, 0x17, 0xbe, 0x1b, 0xd2, 0x62, 0x1c, 0x34, 0x72, 0xb7, 0xa6, 0x6a, 0x3b, 0x2b, 0x4d,
+	0x35, 0xe5, 0xa0, 0x34, 0xd5, 0xb8, 0xe6, 0xb7, 0xe4, 0xe7, 0xcc, 0x44, 0xd7, 0x33, 0x13, 0xfd,
+	0x9e, 0x99, 0xe8, 0xfb, 0xdc, 0xdc, 0xb8, 0x9e, 0x9b, 0x1b, 0xbf, 0xe6, 0xe6, 0x46, 0xd0, 0x55,
+	0x3f, 0xab, 0x67, 0xff, 0x02, 0x00, 0x00, 0xff, 0xff, 0x89, 0xaa, 0xf2, 0xde, 0xf6, 0x04, 0x00,
 	0x00,
 }
 
@@ -548,6 +632,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ClusterServiceClient interface {
+	LocalMember(ctx context.Context, in *LocalMemberRequest, opts ...grpc.CallOption) (*LocalMemberResponse, error)
 	AddMember(ctx context.Context, in *AddMemberRequest, opts ...grpc.CallOption) (*AddMemberResponse, error)
 	PromoteMember(ctx context.Context, in *PromoteMemberRequest, opts ...grpc.CallOption) (*PromoteMemberResponse, error)
 	RemoveMember(ctx context.Context, in *RemoveMemberRequest, opts ...grpc.CallOption) (*RemoveMemberResponse, error)
@@ -560,6 +645,15 @@ type clusterServiceClient struct {
 
 func NewClusterServiceClient(cc *grpc.ClientConn) ClusterServiceClient {
 	return &clusterServiceClient{cc}
+}
+
+func (c *clusterServiceClient) LocalMember(ctx context.Context, in *LocalMemberRequest, opts ...grpc.CallOption) (*LocalMemberResponse, error) {
+	out := new(LocalMemberResponse)
+	err := c.cc.Invoke(ctx, "/rpcpb.ClusterService/LocalMember", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *clusterServiceClient) AddMember(ctx context.Context, in *AddMemberRequest, opts ...grpc.CallOption) (*AddMemberResponse, error) {
@@ -600,6 +694,7 @@ func (c *clusterServiceClient) ClusterStatus(ctx context.Context, in *ClusterSta
 
 // ClusterServiceServer is the server API for ClusterService service.
 type ClusterServiceServer interface {
+	LocalMember(context.Context, *LocalMemberRequest) (*LocalMemberResponse, error)
 	AddMember(context.Context, *AddMemberRequest) (*AddMemberResponse, error)
 	PromoteMember(context.Context, *PromoteMemberRequest) (*PromoteMemberResponse, error)
 	RemoveMember(context.Context, *RemoveMemberRequest) (*RemoveMemberResponse, error)
@@ -610,6 +705,9 @@ type ClusterServiceServer interface {
 type UnimplementedClusterServiceServer struct {
 }
 
+func (*UnimplementedClusterServiceServer) LocalMember(ctx context.Context, req *LocalMemberRequest) (*LocalMemberResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LocalMember not implemented")
+}
 func (*UnimplementedClusterServiceServer) AddMember(ctx context.Context, req *AddMemberRequest) (*AddMemberResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddMember not implemented")
 }
@@ -625,6 +723,24 @@ func (*UnimplementedClusterServiceServer) ClusterStatus(ctx context.Context, req
 
 func RegisterClusterServiceServer(s *grpc.Server, srv ClusterServiceServer) {
 	s.RegisterService(&_ClusterService_serviceDesc, srv)
+}
+
+func _ClusterService_LocalMember_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LocalMemberRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ClusterServiceServer).LocalMember(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/rpcpb.ClusterService/LocalMember",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ClusterServiceServer).LocalMember(ctx, req.(*LocalMemberRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _ClusterService_AddMember_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -704,6 +820,10 @@ var _ClusterService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*ClusterServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "LocalMember",
+			Handler:    _ClusterService_LocalMember_Handler,
+		},
+		{
 			MethodName: "AddMember",
 			Handler:    _ClusterService_AddMember_Handler,
 		},
@@ -782,6 +902,64 @@ func (m *Member) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i = encodeVarintCluserRpc(dAtA, i, uint64(m.ID))
 		i--
 		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *LocalMemberRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *LocalMemberRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *LocalMemberRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *LocalMemberResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *LocalMemberResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *LocalMemberResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Member != nil {
+		{
+			size, err := m.Member.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintCluserRpc(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
@@ -1044,20 +1222,20 @@ func (m *ClusterStatusResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	var l int
 	_ = l
 	if len(m.RemovedIDs) > 0 {
-		dAtA3 := make([]byte, len(m.RemovedIDs)*10)
-		var j2 int
+		dAtA4 := make([]byte, len(m.RemovedIDs)*10)
+		var j3 int
 		for _, num := range m.RemovedIDs {
 			for num >= 1<<7 {
-				dAtA3[j2] = uint8(uint64(num)&0x7f | 0x80)
+				dAtA4[j3] = uint8(uint64(num)&0x7f | 0x80)
 				num >>= 7
-				j2++
+				j3++
 			}
-			dAtA3[j2] = uint8(num)
-			j2++
+			dAtA4[j3] = uint8(num)
+			j3++
 		}
-		i -= j2
-		copy(dAtA[i:], dAtA3[:j2])
-		i = encodeVarintCluserRpc(dAtA, i, uint64(j2))
+		i -= j3
+		copy(dAtA[i:], dAtA4[:j3])
+		i = encodeVarintCluserRpc(dAtA, i, uint64(j3))
 		i--
 		dAtA[i] = 0x22
 	}
@@ -1126,6 +1304,28 @@ func (m *Member) Size() (n int) {
 	}
 	if m.IsLearner {
 		n += 2
+	}
+	return n
+}
+
+func (m *LocalMemberRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *LocalMemberResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Member != nil {
+		l = m.Member.Size()
+		n += 1 + l + sovCluserRpc(uint64(l))
 	}
 	return n
 }
@@ -1429,6 +1629,142 @@ func (m *Member) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.IsLearner = bool(v != 0)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipCluserRpc(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthCluserRpc
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *LocalMemberRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowCluserRpc
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: LocalMemberRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: LocalMemberRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipCluserRpc(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthCluserRpc
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *LocalMemberResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowCluserRpc
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: LocalMemberResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: LocalMemberResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Member", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCluserRpc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthCluserRpc
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthCluserRpc
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Member == nil {
+				m.Member = &Member{}
+			}
+			if err := m.Member.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipCluserRpc(dAtA[iNdEx:])

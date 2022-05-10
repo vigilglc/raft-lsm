@@ -192,6 +192,13 @@ func (s *Server) doConfigure(ctx context.Context, confChange raftpb.ConfChange) 
 
 // region cluster impls
 
+func (s *Server) LocalMember(_ context.Context, _ *api.LocalMemberRequest) (resp *api.LocalMemberResponse, err error) {
+	resp = &api.LocalMemberResponse{
+		Member: clusterMemberSlc2ApiMemberSlc([]*cluster.Member{s.cluster.GetLocalMember()})[0],
+	}
+	return resp, err
+}
+
 func (s *Server) AddMember(ctx context.Context, request *api.AddMemberRequest) (resp *api.AddMemberResponse, err error) {
 	resp = new(api.AddMemberResponse)
 	servPort, sOk := tryConvertUint32To16(request.Member.ServicePort)

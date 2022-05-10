@@ -8,6 +8,7 @@ option (gogoproto.marshaler_all) = true;
 option (gogoproto.unmarshaler_all) = true;
 
 service ClusterService {
+  rpc LocalMember(LocalMemberRequest) returns (LocalMemberResponse);
   rpc AddMember(AddMemberRequest) returns (AddMemberResponse);
   rpc PromoteMember(PromoteMemberRequest) returns (PromoteMemberResponse);
   rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
@@ -21,6 +22,12 @@ message Member{
   uint32 raftPort = 4;
   uint32 servicePort = 5;
   bool  isLearner = 6;
+}
+
+message LocalMemberRequest{}
+
+message LocalMemberResponse{
+  Member member = 1;
 }
 
 
