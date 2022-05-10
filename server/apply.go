@@ -216,7 +216,7 @@ func (s *Server) tryTakeSnapshot(index uint64, confState *raftpb.ConfState) {
 	s.lg.Info("snapshot created success", zap.Uint64("snapshot-index", index),
 		zap.String("cluster-name", s.Config.ClusterName),
 		zap.Uint64("local-member-id", s.cluster.GetLocalMember().ID),
-		zap.String("added-member-name", s.cluster.GetLocalMember().AddrInfo.Name),
+		zap.String("local-member-name", s.cluster.GetLocalMember().AddrInfo.Name),
 	)
 	if atomic.LoadInt64(&s.inflightSnapshots) > 0 {
 		s.lg.Info("skip compaction since a follower is catching up")

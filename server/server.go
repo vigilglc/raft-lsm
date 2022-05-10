@@ -33,21 +33,21 @@ type Server struct {
 	inflightSnapshots int64
 	lead              uint64
 	term              uint64
+	appliedIndex      uint64
 	committedIndex    uint64
 	serverStats       *v2stats.ServerStats
 	leaderStats       *v2stats.LeaderStats
 	// core
-	lg           *zap.Logger
-	Config       *config.ServerConfig
-	applier      Applier
-	appliedIndex uint64
-	cluster      *cluster.Cluster
-	raftNode     *raftn.RaftNode
-	backend      backend.Backend
-	memStorage   *raft.MemoryStorage
-	walStorage   etcdserver.Storage
-	snapshotter  *snap.Snapshotter
-	transport    *rafthttp.Transport
+	lg          *zap.Logger
+	Config      *config.ServerConfig
+	applier     Applier
+	cluster     *cluster.Cluster
+	raftNode    *raftn.RaftNode
+	backend     backend.Backend
+	memStorage  *raft.MemoryStorage
+	walStorage  etcdserver.Storage
+	snapshotter *snap.Snapshotter
+	transport   *rafthttp.Transport
 	// channel...
 	readyC         chan struct{} // after Server
 	stopped        chan struct{}
