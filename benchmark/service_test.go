@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func Benchmark_RaftLSM_Service_Put(b *testing.B) {
+func Benchmark_Sequential_RaftLSM_Service_Put(b *testing.B) {
 	agt := client.NewAgent(context.Background(), "localhost:400", "localhost:401", "localhost:402")
 	defer func(agt client.Agent) { _ = agt.Close() }(agt)
 	b.ResetTimer()
@@ -29,7 +29,7 @@ func Benchmark_RaftLSM_Service_Put(b *testing.B) {
 	}
 }
 
-func Benchmark_RaftLSM_Service_Get_Linearizable(b *testing.B) {
+func Benchmark_Sequential_Linearizable_RaftLSM_Service_Get(b *testing.B) {
 	agt := client.NewAgent(context.Background(), "localhost:400", "localhost:401", "localhost:402")
 	defer func(agt client.Agent) { _ = agt.Close() }(agt)
 	b.ResetTimer()
@@ -44,7 +44,7 @@ func Benchmark_RaftLSM_Service_Get_Linearizable(b *testing.B) {
 	}
 }
 
-func Benchmark_RaftLSM_Service_Get_Serializable(b *testing.B) {
+func Benchmark_Sequential_Serializable_RaftLSM_Service_Get(b *testing.B) {
 	agt := client.NewAgent(context.Background(), "localhost:400", "localhost:401", "localhost:402")
 	defer func(agt client.Agent) { _ = agt.Close() }(agt)
 	b.ResetTimer()
@@ -59,7 +59,7 @@ func Benchmark_RaftLSM_Service_Get_Serializable(b *testing.B) {
 	}
 }
 
-func Benchmark_Etcd_Service_Put(b *testing.B) {
+func Benchmark_Sequential_Etcd_Service_Put(b *testing.B) {
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"localhost:2370", "localhost:2371", "localhost:2372"},
 		DialTimeout: 5 * time.Second,
@@ -78,7 +78,7 @@ func Benchmark_Etcd_Service_Put(b *testing.B) {
 	}
 }
 
-func Benchmark_Etcd_Service_Get_Linearizable(b *testing.B) {
+func Benchmark_Sequential_Linearizable_Etcd_Service_Get(b *testing.B) {
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"localhost:2370", "localhost:2371", "localhost:2372"},
 		DialTimeout: 5 * time.Second,
@@ -94,7 +94,7 @@ func Benchmark_Etcd_Service_Get_Linearizable(b *testing.B) {
 	}
 }
 
-func Benchmark_Etcd_Service_Get_Serializable(b *testing.B) {
+func Benchmark_Sequential_Serializable_Etcd_Service_Get(b *testing.B) {
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"localhost:2370", "localhost:2371", "localhost:2372"},
 		DialTimeout: 5 * time.Second,

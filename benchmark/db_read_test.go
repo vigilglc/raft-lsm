@@ -6,45 +6,45 @@ import (
 	"testing"
 )
 
-func TestInitDBData(t *testing.T) {
-	boltDB, err := openBoltDB("boltdb0", false)
-	if err != nil {
-		t.Error(err)
-	}
-	defer func(boltDB *bbolt.DB) {
-		err := boltDB.Close()
-		if err != nil {
-			t.Error(err)
-		}
-	}(boltDB)
-	levelDB, err := openLevelDB("leveldb0", false)
-	if err != nil {
-		t.Error(err)
-	}
-	defer func(levelDB *leveldb.DB) {
-		err := levelDB.Close()
-		if err != nil {
-			t.Error(err)
-		}
-	}(levelDB)
-	var count = 100000
-	for i := 0; i < count; i++ {
-		key, val := newRandomBytes(8), newRandomBytes(256)
-		if err := levelDB.Put(key, val, nil); err != nil {
-			t.Error(err)
-		}
-		err = boltDB.Update(func(tx *bbolt.Tx) error {
-			bu, err := tx.CreateBucketIfNotExists([]byte("bench"))
-			if err != nil {
-				return err
-			}
-			return bu.Put(key, val)
-		})
-		if err != nil {
-			t.Error(err)
-		}
-	}
-}
+// func TestInitDBData(t *testing.T) {
+// 	boltDB, err := openBoltDB("boltdb0", false)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	defer func(boltDB *bbolt.DB) {
+// 		err := boltDB.Close()
+// 		if err != nil {
+// 			t.Error(err)
+// 		}
+// 	}(boltDB)
+// 	levelDB, err := openLevelDB("leveldb0", false)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	defer func(levelDB *leveldb.DB) {
+// 		err := levelDB.Close()
+// 		if err != nil {
+// 			t.Error(err)
+// 		}
+// 	}(levelDB)
+// 	var count = 100000
+// 	for i := 0; i < count; i++ {
+// 		key, val := newRandomBytes(8), newRandomBytes(256)
+// 		if err := levelDB.Put(key, val, nil); err != nil {
+// 			t.Error(err)
+// 		}
+// 		err = boltDB.Update(func(tx *bbolt.Tx) error {
+// 			bu, err := tx.CreateBucketIfNotExists([]byte("bench"))
+// 			if err != nil {
+// 				return err
+// 			}
+// 			return bu.Put(key, val)
+// 		})
+// 		if err != nil {
+// 			t.Error(err)
+// 		}
+// 	}
+// }
 
 func BenchmarkDB_BoltDB_Read(b *testing.B) {
 	db, err := openBoltDB("boltdb0", false)
