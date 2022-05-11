@@ -5,7 +5,6 @@ import (
 	grb "github.com/desertbit/grumble"
 	"github.com/vigilglc/raft-lsm/server/api/rpcpb"
 	"github.com/vigilglc/raft-lsm/server/backend/kvpb"
-	"go.etcd.io/etcd/raft/v3"
 	"math"
 	"strconv"
 	"strings"
@@ -25,6 +24,10 @@ const (
 	argMember       = "member"
 )
 
+const (
+	randomSelectedID = "random selected ID"
+)
+
 type RangeExecutor interface {
 	Begin(from, to string, asc, linearizable bool) error
 	Next(N uint64) (kvs []*kvpb.KV, hasMore bool, err error)
@@ -34,20 +37,21 @@ type RangeExecutor interface {
 type InitFunc func(hosts []string) error
 type CloseFunc func() error
 
-type ExeGetFunc func(key string, linearizable bool) (val string, err error)
+type ExeGetFunc func(key string, linearizable bool, ID *uint64) (val string, err error)
 type ExePutFunc func(kvs []*kvpb.KV) (err error)
 type ExeDelFunc func(keys []string) (err error)
-type ExeRangeFunc func(from, to string, asc, linearizable bool) (exe RangeExecutor, err error)
+type ExeRangeFunc func(from, to string, asc, linearizable bool, ID *uint64) (exe RangeExecutor, err error)
 
 type ExeAddMemberFunc func(mem *rpcpb.Member) (members []*rpcpb.Member, err error)
 type ExePromoteMemberFunc func(ID uint64) (members []*rpcpb.Member, err error)
 type ExeRemoveMemberFunc func(ID uint64) (members []*rpcpb.Member, err error)
-type ExeClusterStatusFunc func(ID uint64, linearizable bool) (status *rpcpb.ClusterStatusResponse, err error)
+type ExeClusterStatusFunc func(linearizable bool, ID *uint64) (status *rpcpb.ClusterStatusResponse, err error)
 
-type ExeRaftStatusFunc func(ID uint64, linearizable bool) (status *rpcpb.StatusResponse, err error)
+type ExeRaftStatusFunc func(linearizable bool, ID *uint64) (status *rpcpb.StatusResponse, err error)
 type ExeTransferLeaderFunc func(fromID, toID uint64) (err error)
 
 type ExeHostsFunc func() (hosts []string, err error)
+type ExeIDsFunc func() (IDs []uint64, err error)
 type ExeResolveFunc func() error
 
 var (
@@ -67,6 +71,7 @@ var (
 	exeClusterStatusFUnc  ExeClusterStatusFunc
 	exeRaftStatusFunc     ExeRaftStatusFunc
 	exeTransferLeaderFunc ExeTransferLeaderFunc
+	exeIDsFunc            ExeIDsFunc
 	exeHostsFunc          ExeHostsFunc
 	exeResolveFunc        ExeResolveFunc
 )
@@ -111,6 +116,9 @@ func SetExeTransferLeaderFunc(fun ExeTransferLeaderFunc) {
 	exeTransferLeaderFunc = fun
 }
 
+func SetExeIDsFunc(fun ExeIDsFunc) {
+	exeIDsFunc = fun
+}
 func SetExeHostsFunc(fun ExeHostsFunc) {
 	exeHostsFunc = fun
 }
@@ -140,15 +148,26 @@ var (
 		Name:    "GET",
 		Aliases: []string{"get"},
 		Help:    "get KV's val",
-		Usage:   "GET key [linearizable]",
+		Usage:   "GET key [linearizable] [ID]",
 		Args: func(a *grb.Args) {
 			a.String(argKey, "KV's key")
 			a.Bool(argLinearizable, "whether to do linearizable reads", grb.Default(true))
+			a.String(argID, "assigned node ID", grb.Default(randomSelectedID))
 		},
 		Run: func(c *grb.Context) error {
 			key := c.Args.String(argKey)
 			linearizable := c.Args.Bool(argLinearizable)
-			val, err := exeGetFunc(key, linearizable)
+			var ID *uint64
+			sID := c.Args.String(argID)
+			if sID != randomSelectedID {
+				_ID, err := strconv.ParseUint(sID, 10, 64)
+				if err != nil {
+					c.App.PrintError(err)
+					return nil
+				}
+				ID = &_ID
+			}
+			val, err := exeGetFunc(key, linearizable, ID)
 			if err != nil {
 				c.App.PrintError(err)
 				return nil
@@ -211,19 +230,30 @@ var (
 		Name:    "RANGE",
 		Aliases: []string{"range"},
 		Help:    "get a KV iterator within the given range",
-		Usage:   "RANGE from to [asc] [linearizable]",
+		Usage:   "RANGE from to [asc] [linearizable] [ID]",
 		Args: func(a *grb.Args) {
 			a.String(argFrom, "KV's key begins from")
 			a.String(argTo, "KV's key ends to")
 			a.Bool(argAsc, "order of KV's key", grb.Default(true))
 			a.Bool(argLinearizable, "whether to do linearizable reads", grb.Default(true))
+			a.String(argID, "assigned node ID", grb.Default(randomSelectedID))
 		},
 		Run: func(c *grb.Context) error {
 			from := c.Args.String(argFrom)
 			to := c.Args.String(argTo)
 			asc := c.Args.Bool(argAsc)
 			linearizable := c.Args.Bool(argLinearizable)
-			exe, err := exeRangeFunc(from, to, asc, linearizable)
+			var ID *uint64
+			sID := c.Args.String(argID)
+			if sID != randomSelectedID {
+				_ID, err := strconv.ParseUint(sID, 10, 64)
+				if err != nil {
+					c.App.PrintError(err)
+					return nil
+				}
+				ID = &_ID
+			}
+			exe, err := exeRangeFunc(from, to, asc, linearizable, ID)
 			if err != nil {
 				c.App.PrintError(err)
 				return nil
@@ -400,15 +430,24 @@ var (
 		Name:    "CSTATUS",
 		Aliases: []string{"cstatus"},
 		Help:    "get cluster status",
-		Usage:   "CSTATUS [ID] [linearizable]",
+		Usage:   "CSTATUS [linearizable] [ID]",
 		Args: func(a *grb.Args) {
-			a.Uint64(argID, "member's node ID", grb.Default(raft.None))
 			a.Bool(argLinearizable, "whether to do linearizable reads", grb.Default(false))
+			a.String(argID, "assigned node ID", grb.Default(randomSelectedID))
 		},
 		Run: func(c *grb.Context) error {
-			nodeID := c.Args.Uint64(argID)
 			linearizable := c.Args.Bool(argLinearizable)
-			status, err := exeClusterStatusFUnc(nodeID, linearizable)
+			var ID *uint64
+			sID := c.Args.String(argID)
+			if sID != randomSelectedID {
+				_ID, err := strconv.ParseUint(sID, 10, 64)
+				if err != nil {
+					c.App.PrintError(err)
+					return nil
+				}
+				ID = &_ID
+			}
+			status, err := exeClusterStatusFUnc(linearizable, ID)
 			if err != nil {
 				c.App.PrintError(err)
 				return nil
@@ -431,15 +470,24 @@ var (
 		Name:    "RSTATUS",
 		Aliases: []string{"rstatus"},
 		Help:    "get raft status",
-		Usage:   "RSTATUS [ID] [linearizable]",
+		Usage:   "RSTATUS [linearizable] [ID]",
 		Args: func(a *grb.Args) {
-			a.Uint64(argID, "member's node ID", grb.Default(raft.None))
 			a.Bool(argLinearizable, "whether to do linearizable reads", grb.Default(false))
+			a.String(argID, "assigned node ID", grb.Default(randomSelectedID))
 		},
 		Run: func(c *grb.Context) error {
-			nodeID := c.Args.Uint64(argID)
 			linearizable := c.Args.Bool(argLinearizable)
-			status, err := exeRaftStatusFunc(nodeID, linearizable)
+			var ID *uint64
+			sID := c.Args.String(argID)
+			if sID != randomSelectedID {
+				_ID, err := strconv.ParseUint(sID, 10, 64)
+				if err != nil {
+					c.App.PrintError(err)
+					return nil
+				}
+				ID = &_ID
+			}
+			status, err := exeRaftStatusFunc(linearizable, ID)
 			if err != nil {
 				c.App.PrintError(err)
 				return nil

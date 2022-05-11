@@ -9,198 +9,179 @@ import (
 	"github.com/vigilglc/raft-lsm/server/backend/kvpb"
 	"log"
 	"os"
-	"strings"
 	"time"
 )
 
-func initApp(ctx context.Context,
-	balancerGen func(ctx context.Context) client.Balancer,
-	clientGen func(ctx context.Context, host string) client.Client) {
+func initApp(ctx context.Context, agentGen func(ctx context.Context, initHosts ...string) client.Agent) {
 	var appToStop = make(chan struct{})
 	var appStopped = make(chan struct{})
 
-	balancer := balancerGen(ctx)
-	ctx = balancer.Context()
+	agent := agentGen(ctx)
 
-	app.SetExeGetFunc(func(key string, linearizable bool) (val string, err error) {
-		cli, release := balancer.Pick()
-		defer release()
-		resp, err := cli.Get(ctx, &rpcpb.GetRequest{Key: key, Linearizable: linearizable})
-		if err != nil {
-			return "", err
+	var caller = func(ID *uint64, act func(ctx context.Context, client client.Client) error) error {
+		if ID != nil {
+			return agent.PickByID(*ID, act)
 		}
-		return resp.Val, err
+		return agent.Pick(act)
+	}
+
+	app.SetExeGetFunc(func(key string, linearizable bool, ID *uint64) (val string, err error) {
+		err = caller(ID, func(ctx context.Context, cli client.Client) error {
+			var resp *rpcpb.GetResponse
+			resp, err = cli.Get(ctx, &rpcpb.GetRequest{Key: key, Linearizable: linearizable})
+			if err != nil {
+				val = ""
+			} else {
+				val = resp.Val
+			}
+			return err
+		})
+		return
 	})
 	app.SetExePutFunc(func(kvs []*kvpb.KV) (err error) {
-		cli, release := balancer.Pick()
-		defer release()
-		if len(kvs) == 1 {
-			_, err = cli.Put(ctx, &rpcpb.PutRequest{KeyVal: kvs[0]})
-		} else if len(kvs) > 1 {
-			req := new(rpcpb.WriteRequest)
-			for _, kv := range kvs {
-				req.Batch = append(req.Batch, &rpcpb.BatchEntry{
-					OP:     rpcpb.BatchEntry_PUT,
-					KeyVal: kv,
-				})
+		err = caller(nil, func(ctx context.Context, cli client.Client) error {
+			if len(kvs) == 1 {
+				_, err = cli.Put(ctx, &rpcpb.PutRequest{KeyVal: kvs[0]})
+			} else if len(kvs) > 1 {
+				req := new(rpcpb.WriteRequest)
+				for _, kv := range kvs {
+					req.Batch = append(req.Batch, &rpcpb.BatchEntry{
+						OP:     rpcpb.BatchEntry_PUT,
+						KeyVal: kv,
+					})
+				}
+				_, err = cli.Write(ctx, req)
 			}
-			_, err = cli.Write(ctx, req)
-		}
-		return err
+			return err
+		})
+		return
 	})
 	app.SetExeDelFunc(func(keys []string) (err error) {
-		cli, release := balancer.Pick()
-		defer release()
-		if len(keys) == 1 {
-			_, err = cli.Del(ctx, &rpcpb.DelRequest{Key: keys[0]})
-		} else if len(keys) > 1 {
-			req := new(rpcpb.WriteRequest)
-			for _, k := range keys {
-				req.Batch = append(req.Batch, &rpcpb.BatchEntry{
-					OP:     rpcpb.BatchEntry_DEL,
-					KeyVal: &kvpb.KV{Key: k},
-				})
+		err = caller(nil, func(ctx context.Context, cli client.Client) error {
+			if len(keys) == 1 {
+				_, err = cli.Del(ctx, &rpcpb.DelRequest{Key: keys[0]})
+			} else if len(keys) > 1 {
+				req := new(rpcpb.WriteRequest)
+				for _, k := range keys {
+					req.Batch = append(req.Batch, &rpcpb.BatchEntry{
+						OP:     rpcpb.BatchEntry_DEL,
+						KeyVal: &kvpb.KV{Key: k},
+					})
+				}
+				_, err = cli.Write(ctx, req)
 			}
-			_, err = cli.Write(ctx, req)
-		}
-		return err
-	})
-	app.SetExeRangeFunc(func(from, to string, asc, linearizable bool) (exe app.RangeExecutor, err error) {
-		cli, release := balancer.Pick()
-		rgCli, err := cli.Range(ctx)
-		if err != nil {
-			return nil, err
-		}
-		exe, err = NewRangeExecutor(rgCli, release)
-		if err != nil {
-			return
-		}
-		err = exe.Begin(from, to, asc, linearizable)
+			return err
+		})
 		return
+	})
+	app.SetExeRangeFunc(func(from, to string, asc, linearizable bool, ID *uint64) (exe app.RangeExecutor, err error) {
+		err = caller(ID, func(ctx context.Context, cli client.Client) error {
+			var rgCli rpcpb.KVService_RangeClient
+			rgCli, err = cli.Range(ctx)
+			if err != nil {
+				exe = nil
+			}
+			cli.Lock()
+			exe, err = NewRangeExecutor(rgCli, func() { cli.Unlock() })
+			if err != nil {
+				_ = exe.Close()
+				return err
+			}
+			return exe.Begin(from, to, asc, linearizable)
+		})
+		return
+
 	})
 
 	app.SetExeAddMemberFunc(func(mem *rpcpb.Member) (members []*rpcpb.Member, err error) {
-		cli, release := balancer.Pick()
-		defer release()
-		resp, err := cli.AddMember(ctx, &rpcpb.AddMemberRequest{Member: mem})
-		if resp != nil {
-			members = resp.Members
-		}
-		if err == nil {
-			host := client.GetMemberHost(mem)
-			balancer.AddClient(clientGen(ctx, host))
-		}
+		err = caller(nil, func(ctx context.Context, cli client.Client) error {
+			var resp *rpcpb.AddMemberResponse
+			resp, err = cli.AddMember(ctx, &rpcpb.AddMemberRequest{Member: mem})
+			if resp != nil {
+				members = resp.Members
+			}
+			if err == nil {
+				host := client.GetMemberHost(mem)
+				agent.AddClients([]string{host})
+			}
+			return err
+		})
 		return
 	})
 	app.SetExePromoteMemberFunc(func(ID uint64) (members []*rpcpb.Member, err error) {
-		cli, release := balancer.Pick()
-		defer release()
-		resp, err := cli.PromoteMember(ctx, &rpcpb.PromoteMemberRequest{NodeID: ID})
-		if resp != nil {
-			members = resp.Members
-		}
+		err = caller(nil, func(ctx context.Context, cli client.Client) error {
+			var resp *rpcpb.PromoteMemberResponse
+			resp, err := cli.PromoteMember(ctx, &rpcpb.PromoteMemberRequest{NodeID: ID})
+			if resp != nil {
+				members = resp.Members
+			}
+			return err
+		})
 		return
 	})
 	app.SetExeRemoveMemberFunc(func(ID uint64) (members []*rpcpb.Member, err error) {
-		cli, release := balancer.Pick()
-		defer release()
-		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		resp, err := cli.RemoveMember(ctx, &rpcpb.RemoveMemberRequest{NodeID: ID})
-		defer cancel()
-		if resp != nil {
-			members = resp.Members
-		}
-		if err == nil {
-			balancer.RemoveByID(ID)
-		}
+		err = caller(nil, func(ctx context.Context, cli client.Client) error {
+			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			var resp *rpcpb.RemoveMemberResponse
+			resp, err = cli.RemoveMember(ctx, &rpcpb.RemoveMemberRequest{NodeID: ID})
+			defer cancel()
+			if resp != nil {
+				members = resp.Members
+			}
+			return err
+		})
 		return
 	})
-	app.SetExeClusterStatusFunc(func(ID uint64, linearizable bool) (status *rpcpb.ClusterStatusResponse, err error) {
-		cli, release := balancer.PickByID(ID)
-		if cli == nil {
-			release()
-			cli, release = balancer.Pick()
-		}
-		defer release()
-		status, err = cli.ClusterStatus(ctx, &rpcpb.ClusterStatusRequest{Linearizable: linearizable})
+	app.SetExeClusterStatusFunc(func(linearizable bool, ID *uint64) (status *rpcpb.ClusterStatusResponse, err error) {
+		err = caller(ID, func(ctx context.Context, cli client.Client) error {
+			status, err = cli.ClusterStatus(ctx, &rpcpb.ClusterStatusRequest{Linearizable: linearizable})
+			return err
+		})
 		return
 	})
 
-	app.SetExeRaftStatusFunc(func(ID uint64, linearizable bool) (status *rpcpb.StatusResponse, err error) {
-		cli, release := balancer.PickByID(ID)
-		if cli == nil {
-			release()
-			cli, release = balancer.Pick()
-		}
-		defer release()
-		status, err = cli.Status(ctx, &rpcpb.StatusRequest{Linearizable: linearizable})
+	app.SetExeRaftStatusFunc(func(linearizable bool, ID *uint64) (status *rpcpb.StatusResponse, err error) {
+		err = caller(ID, func(ctx context.Context, cli client.Client) error {
+			status, err = cli.Status(ctx, &rpcpb.StatusRequest{Linearizable: linearizable})
+			return err
+		})
 		return
 	})
 	app.SetExeTransferLeaderFunc(func(fromID, toID uint64) (err error) {
-		cli, release := balancer.PickByID(fromID)
-		if cli == nil {
-			release()
-			cli, release = balancer.Pick()
-		}
-		defer release()
-		if cli == nil {
-			return fmt.Errorf("failed to pick client connecting to node: %d", fromID)
-		}
-		_, err = cli.TransferLeader(ctx, &rpcpb.TransferLeaderRequest{TransfereeID: toID})
+		err = caller(&fromID, func(ctx context.Context, cli client.Client) error {
+			_, err = cli.TransferLeader(ctx, &rpcpb.TransferLeaderRequest{TransfereeID: toID})
+			return err
+		})
 		return
 	})
 
-	app.SetExeHostsFunc(func() (hosts []string, err error) {
-		return balancer.AllClientHosts(), nil
+	app.SetExeIDsFunc(func() (IDs []uint64, err error) {
+		return agent.AllIDs(), nil
 	})
-	var rsvInterval = 60 * time.Second
-	var rsvRequest = make(chan struct{}, 1)
-	var rsvResponse = make(chan error, 1)
 
-	go func() {
-		var timer = time.NewTimer(rsvInterval)
-		for true {
-			select {
-			case <-appToStop:
-				close(appStopped)
-				return
-			case <-timer.C:
-				_ = balancer.Resolve()
-			case <-rsvRequest:
-				rsvResponse <- balancer.Resolve()
-			}
-			timer.Reset(rsvInterval)
-		}
-	}()
-	requestResolve := func() error {
-		rsvRequest <- struct{}{}
-		return <-rsvResponse
-	}
-	app.SetExeResolveFunc(requestResolve)
+	app.SetExeHostsFunc(func() (hosts []string, err error) {
+		return agent.AllHosts(), nil
+	})
+
+	app.SetExeResolveFunc(agent.Resolve)
 
 	app.SetInitFunc(func(hosts []string) error {
-		for _, host := range hosts {
-			host = strings.TrimSpace(host)
-			if len(host) == 0 {
-				continue
-			}
-			balancer.AddClient(clientGen(ctx, host))
-		}
-		if len(balancer.AllClientHosts()) == 0 {
+		agent.AddClients(hosts)
+		if len(agent.AllHosts()) == 0 {
 			return fmt.Errorf("failed to start client, since no server hosts provided")
 		}
-		_ = requestResolve()
+		_ = agent.Resolve()
 		return nil
 	})
 	app.SetCloseFunc(func() error {
 		close(appToStop)
 		<-appStopped
-		return balancer.Close()
+		return agent.Close()
 	})
 }
 
 func main() {
-	var clientGen = client.NewClient
+	var agentGen = client.NewAgent
 	var testing bool
 	for i, arg := range os.Args {
 		if arg == "--test" {
@@ -209,11 +190,11 @@ func main() {
 		}
 	}
 	if testing {
-		clientGen = func(ctx context.Context, host string) (client client.Client) {
-			return newFakeClient(host)
-		}
-		log.Println("testing mode...")
+		// clientGen = func(ctx context.Context, host string) (client client.Client) {
+		// 	return newFakeClient(host)
+		// }
+		// log.Println("testing mode...")
 	}
-	initApp(context.Background(), client.NewBalancer, clientGen)
+	initApp(context.Background(), agentGen)
 	log.Fatal(app.Run())
 }

@@ -226,18 +226,16 @@ func (f *fakeClient) Host() string {
 	return f.host
 }
 
-func (f *fakeClient) Closed() bool {
-	return f.closed
+func (f *fakeClient) LocalMember(ctx context.Context, in *rpcpb.LocalMemberRequest, opts ...grpc.CallOption) (*rpcpb.LocalMemberResponse, error) {
+	return &rpcpb.LocalMemberResponse{Member: &rpcpb.Member{ID: 1}}, nil
 }
 
-func (f *fakeClient) Reset() error {
-	f.closed = false
-	return nil
+func (f *fakeClient) ID() uint64 {
+	return 1
 }
 
-func (f *fakeClient) Close() error {
-	f.closed = true
-	return nil
-}
+func (f *fakeClient) Lock() {}
+
+func (f *fakeClient) Unlock() {}
 
 // endregion
