@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/vigilglc/raft-lsm/server"
 	api "github.com/vigilglc/raft-lsm/server/api/rpcpb"
 	"github.com/vigilglc/raft-lsm/server/config"
@@ -38,7 +39,7 @@ func StartService(cfg *config.ServerConfig) error {
 
 func (ss *serviceServer) Get(ctx context.Context, req *api.GetRequest) (resp *api.GetResponse, err error) {
 	resp, err = ss.sv.Get(ctx, req)
-	if err != nil {
+	if err != nil && err != leveldb.ErrNotFound {
 		ss.lg.Error("failed to process request", zap.Any("request", req), zap.Error(err))
 	}
 	return
