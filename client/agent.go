@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/vigilglc/raft-lsm/server/api/rpcpb"
 	"github.com/vigilglc/raft-lsm/server/cluster"
+	"github.com/vigilglc/raft-lsm/server/utils/ntfyutil"
 	"github.com/vigilglc/raft-lsm/server/utils/syncutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -17,6 +18,7 @@ import (
 
 var (
 	ErrNoAvailableClients = errors.New("client-agent: no available clients")
+	ErrAgentStopped       = errors.New("client-agent: stopped")
 )
 
 type Agent interface {
@@ -42,6 +44,9 @@ type agent struct {
 
 	stopped chan struct{}
 	done    chan struct{}
+
+	emitter    *ntfyutil.SharedVEmitter
+	resolveReq chan struct{}
 }
 
 func NewAgent(ctx context.Context, initHosts ...string) Agent {
@@ -51,15 +56,25 @@ func NewAgent(ctx context.Context, initHosts ...string) Agent {
 	ret.doClean()
 	ret.stopped = make(chan struct{})
 	ret.done = make(chan struct{})
+
+	ret.emitter = ntfyutil.NewSharedVEmitter()
+	ret.resolveReq = make(chan struct{})
+
 	ret.AddClients(initHosts)
 	go func() {
+		var timer = time.NewTimer(resolveInterval)
 		for true {
 			select {
 			case <-ret.stopped:
 				close(ret.done)
 				return
-			case <-time.After(resolveInterval):
-				_ = ret.Resolve()
+			case <-timer.C:
+				_ = ret.doResolve()
+				timer.Reset(resolveInterval)
+			case <-ret.resolveReq:
+				err := ret.doResolve()
+				ret.emitter.NextShared().Notify(err)
+				timer.Reset(resolveInterval)
 			}
 		}
 	}()
@@ -149,6 +164,22 @@ const (
 )
 
 func (agt *agent) Resolve() error {
+	sharedV := agt.emitter.CurrentShared(func() {
+		agt.resolveReq <- struct{}{}
+	})
+	select {
+	case <-agt.stopped:
+		return ErrAgentStopped
+	case <-sharedV.Wait():
+	}
+	v, ok := sharedV.Value().(error)
+	if ok {
+		return v
+	}
+	return nil
+}
+
+func (agt *agent) doResolve() error {
 	var resp *rpcpb.ClusterStatusResponse
 	var err error
 	var act = func(ctx context.Context, client Client) error {
