@@ -98,6 +98,7 @@ func (s *Server) requestReadIndex(ctx context.Context, reqID uint64) (index uint
 			if err != nil {
 				return 0, err
 			}
+			retryTimer.Reset(readIndexRetryTime)
 		case i := <-indexCh:
 			if i == nil {
 				return 0, ErrTimeout
