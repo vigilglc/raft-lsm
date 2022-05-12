@@ -151,18 +151,30 @@ const (
 func (agt *agent) Resolve() error {
 	var resp *rpcpb.ClusterStatusResponse
 	var err error
+	var act = func(ctx context.Context, client Client) error {
+		ctx, cancel := context.WithTimeout(ctx, resolveTimeout)
+		defer cancel()
+		resp, err = client.ClusterStatus(ctx, &rpcpb.ClusterStatusRequest{Linearizable: true})
+		return err
+	}
+	var resolved = func() bool {
+		return err == nil && resp != nil && len(resp.Members) > 0
+	}
 	for i := 0; i < resolveRetryTimes; i++ {
-		_ = agt.Pick(func(ctx context.Context, client Client) error {
-			ctx, cancel := context.WithTimeout(ctx, resolveTimeout)
-			defer cancel()
-			resp, err = client.ClusterStatus(ctx, &rpcpb.ClusterStatusRequest{Linearizable: true})
-			return err
-		})
-		if err == nil && len(resp.Members) > 0 {
+		_ = agt.Pick(act)
+		if resolved() {
 			break
 		}
 	}
-	if err != nil || len(resp.Members) == 0 {
+	if !resolved() {
+		for _, ID := range agt.deadIDs() {
+			_ = agt.PickByID(ID, act)
+			if resolved() {
+				break
+			}
+		}
+	}
+	if !resolved() {
 		return err
 	}
 	hosts := map[string]struct{}{}
@@ -222,6 +234,7 @@ func (agt *agent) PickByID(ID uint64, act func(context.Context, Client) error) e
 		}
 	}
 	if client == nil {
+		agt.rwmu.RUnlock()
 		return ErrNoAvailableClients
 	}
 	var revoked bool
@@ -278,6 +291,16 @@ func (agt *agent) deadClient2Alive(host string) {
 	if cli, ok := agt.deadClients[host]; ok {
 		agt.aliveClients[host] = cli
 	}
+}
+
+func (agt *agent) deadIDs() []uint64 {
+	agt.rwmu.RLock()
+	var deadIDs []uint64
+	for _, cli := range agt.deadClients {
+		deadIDs = append(deadIDs, cli.ID())
+	}
+	agt.rwmu.RUnlock()
+	return deadIDs
 }
 
 func GetMemberHost(mem *rpcpb.Member) string {
