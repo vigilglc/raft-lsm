@@ -66,6 +66,7 @@ func Benchmark_Etcd_Backend_Put(b *testing.B) {
 	batchTx.Unlock()
 
 	b.ResetTimer()
+	defer b.StopTimer()
 	for i := 0; i < b.N; i++ {
 		batchTx.Lock()
 		batchTx.UnsafePut(buckets.Test, newRandomBytes(8), newRandomBytes(256))
@@ -87,6 +88,7 @@ func Benchmark_RaftLSM_Backend_Put(b *testing.B) {
 		}
 	}(be)
 	b.ResetTimer()
+	defer b.StopTimer()
 	for i := 0; i < b.N; i++ {
 		if err := be.Put(appliedIndex, string(newRandomBytes(8)), string(newRandomBytes(256))); err != nil {
 			b.Error(err)

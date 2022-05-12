@@ -53,6 +53,7 @@ func BenchmarkDB_BoltDB_Read(b *testing.B) {
 	}
 	defer func(db *bbolt.DB) { _ = db.Close() }(db)
 	b.ResetTimer()
+	defer b.StopTimer()
 	for i := 0; i < b.N; i++ {
 		err := db.View(func(tx *bbolt.Tx) error {
 			bucket := tx.Bucket([]byte("bench"))
@@ -72,6 +73,7 @@ func BenchmarkDB_LevelDB_Read(b *testing.B) {
 	}
 	defer func(db *leveldb.DB) { _ = db.Close() }(db)
 	b.ResetTimer()
+	defer b.StopTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = db.Get(newRandomBytes(8), nil)
 		if err != nil {

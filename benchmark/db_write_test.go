@@ -76,6 +76,7 @@ func BenchmarkDB_Batch5_BoltDB_Write(b *testing.B) {
 
 func benchmarkBoltDBWriteBatch(b *testing.B, db *bbolt.DB, batch int) {
 	b.ResetTimer()
+	defer b.StopTimer()
 	for i := 0; i < b.N; i++ {
 		err := db.Update(func(tx *bbolt.Tx) error {
 			bucket, err := tx.CreateBucketIfNotExists([]byte("bench"))
@@ -124,6 +125,7 @@ func BenchmarkDB_Batch5_LevelDB_Write(b *testing.B) {
 
 func benchmarkLevelDBWriteBatch(b *testing.B, db *leveldb.DB, batch int) {
 	b.ResetTimer()
+	defer b.StopTimer()
 	for i := 0; i < b.N; i++ {
 		bat := new(leveldb.Batch)
 		for i := 0; i < batch; i++ {

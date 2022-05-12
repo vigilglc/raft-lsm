@@ -15,6 +15,7 @@ func Benchmark_Sequential_RaftLSM_Service_Put(b *testing.B) {
 	agt := client.NewAgent(context.Background(), "localhost:400", "localhost:401", "localhost:402")
 	defer func(agt client.Agent) { _ = agt.Close() }(agt)
 	b.ResetTimer()
+	defer b.StopTimer()
 	for i := 0; i < b.N; i++ {
 		err := agt.Pick(func(ctx context.Context, c client.Client) error {
 			_, err := c.Put(ctx, &rpcpb.PutRequest{KeyVal: &kvpb.KV{
@@ -33,6 +34,7 @@ func Benchmark_Sequential_Linearizable_RaftLSM_Service_Get(b *testing.B) {
 	agt := client.NewAgent(context.Background(), "localhost:400", "localhost:401", "localhost:402")
 	defer func(agt client.Agent) { _ = agt.Close() }(agt)
 	b.ResetTimer()
+	defer b.StopTimer()
 	for i := 0; i < b.N; i++ {
 		_ = agt.Pick(func(ctx context.Context, c client.Client) error {
 			_, err := c.Get(ctx, &rpcpb.GetRequest{
@@ -48,6 +50,7 @@ func Benchmark_Sequential_Serializable_RaftLSM_Service_Get(b *testing.B) {
 	agt := client.NewAgent(context.Background(), "localhost:400", "localhost:401", "localhost:402")
 	defer func(agt client.Agent) { _ = agt.Close() }(agt)
 	b.ResetTimer()
+	defer b.StopTimer()
 	for i := 0; i < b.N; i++ {
 		_ = agt.Pick(func(ctx context.Context, c client.Client) error {
 			_, err := c.Get(ctx, &rpcpb.GetRequest{
@@ -70,6 +73,7 @@ func Benchmark_Sequential_Etcd_Service_Put(b *testing.B) {
 	ctx := context.Background()
 	defer func(cli *clientv3.Client) { _ = cli.Close() }(cli)
 	b.ResetTimer()
+	defer b.StopTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := cli.Put(ctx, generateValidKey(b), string(newRandomBytes(256)))
 		if err != nil {
@@ -89,6 +93,7 @@ func Benchmark_Sequential_Linearizable_Etcd_Service_Get(b *testing.B) {
 	ctx := context.Background()
 	defer func(cli *clientv3.Client) { _ = cli.Close() }(cli)
 	b.ResetTimer()
+	defer b.StopTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = cli.Get(ctx, generateValidKey(b))
 	}
@@ -105,6 +110,7 @@ func Benchmark_Sequential_Serializable_Etcd_Service_Get(b *testing.B) {
 	ctx := context.Background()
 	defer func(cli *clientv3.Client) { _ = cli.Close() }(cli)
 	b.ResetTimer()
+	defer b.StopTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = cli.Get(ctx, generateValidKey(b), clientv3.WithSerializable())
 	}
