@@ -47,7 +47,7 @@ import (
 // }
 
 func BenchmarkDB_BoltDB_Read(b *testing.B) {
-	db, err := openBoltDB("boltdb0", false)
+	db, err := openBoltDB("boltdb", false)
 	if err != nil {
 		b.Error(err)
 	}
@@ -66,7 +66,7 @@ func BenchmarkDB_BoltDB_Read(b *testing.B) {
 }
 
 func BenchmarkDB_LevelDB_Read(b *testing.B) {
-	db, err := openLevelDB("leveldb0", false)
+	db, err := openLevelDB("leveldb", false)
 	if err != nil {
 		b.Error(err)
 	}

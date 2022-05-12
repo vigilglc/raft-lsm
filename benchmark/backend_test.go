@@ -28,7 +28,7 @@ func openEtcdBackend(name string, clean bool) (be etcdBackend.Backend, err error
 	return etcdBackend.New(config), nil
 }
 
-func openRaftLSMBackend(name string, clean bool) (be raftLSMBackend.Backend, err error) {
+func openRaftLSMBackend(name string, sync bool, clean bool) (be raftLSMBackend.Backend, err error) {
 	gopath, set := os.LookupEnv("GOPATH")
 	if !set {
 		os.Exit(-1)
@@ -43,7 +43,7 @@ func openRaftLSMBackend(name string, clean bool) (be raftLSMBackend.Backend, err
 	config := raftLSMBackend.Config{
 		Dir:        dbDir,
 		ForceClose: false,
-		Sync:       true,
+		Sync:       sync,
 	}
 	return raftLSMBackend.OpenBackend(zap.NewExample(), config)
 }
@@ -76,7 +76,7 @@ func Benchmark_Etcd_Backend_Put(b *testing.B) {
 var appliedIndex uint64
 
 func Benchmark_RaftLSM_Backend_Put(b *testing.B) {
-	be, err := openRaftLSMBackend("raft-lsm", false)
+	be, err := openRaftLSMBackend("raft-lsm", true, false)
 	if err != nil {
 		b.Error(err)
 	}
@@ -92,5 +92,8 @@ func Benchmark_RaftLSM_Backend_Put(b *testing.B) {
 			b.Error(err)
 		}
 		appliedIndex++
+	}
+	if err := be.Sync(); err != nil {
+		b.Error(err)
 	}
 }
